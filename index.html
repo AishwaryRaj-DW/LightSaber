@@ -1,0 +1,2307 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CyberSaber VR — SDT & Fitts's Law Psychophysics Environment</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js r128 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    :root {
+      --neon-red: #ff2a5f;
+      --neon-blue: #00e5ff;
+      --neon-green: #00ff66;
+      --neon-purple: #b829ff;
+    }
+    * {
+      user-select: none;
+      -webkit-user-select: none;
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #05050c;
+      font-family: 'Inter', sans-serif;
+      color: #e2e8f0;
+    }
+    .font-cyber {
+      font-family: 'Orbitron', sans-serif;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      cursor: crosshair;
+    }
+    .hud-glass {
+      background: rgba(9, 12, 26, 0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65);
+    }
+    .neon-border-red {
+      border-color: rgba(255, 42, 95, 0.55);
+      box-shadow: 0 0 15px rgba(255, 42, 95, 0.2);
+    }
+    .neon-border-blue {
+      border-color: rgba(0, 229, 255, 0.55);
+      box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+    }
+    .neon-border-green {
+      border-color: rgba(0, 255, 102, 0.55);
+      box-shadow: 0 0 15px rgba(0, 255, 102, 0.2);
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.6);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(56, 189, 248, 0.8);
+    }
+    /* Custom Range Sliders */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      background: rgba(30, 41, 59, 0.9);
+      border-radius: 999px;
+      outline: none;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
+      transition: transform 0.1s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+    /* Floating feedback animation */
+    @keyframes floatUpFade {
+      0% { opacity: 1; transform: translate(-50%, 0) scale(0.85); }
+      25% { opacity: 1; transform: translate(-50%, -14px) scale(1.05); }
+      100% { opacity: 0; transform: translate(-50%, -48px) scale(0.95); }
+    }
+    .feedback-pop {
+      position: fixed;
+      pointer-events: none;
+      z-index: 40;
+      animation: floatUpFade 0.95s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen overflow-hidden select-none">
+
+  <!-- 3D WebGL / WebXR Canvas Container -->
+  <div id="canvas-container" oncontextmenu="return false;"></div>
+
+  <!-- Floating Dynamic Feedback Container -->
+  <div id="feedback-layer" class="fixed inset-0 pointer-events-none z-30 overflow-hidden"></div>
+
+  <!-- TOP NAVIGATION & GAME BAR -->
+  <header class="fixed top-2 left-2 right-2 z-20 flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-xl hud-glass">
+    <!-- Brand & Title -->
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-rose-500 via-purple-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+        <i class="fa-solid fa-bolt text-white text-lg"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-cyber text-sm md:text-base font-bold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-rose-400 via-fuchsia-300 to-cyan-400">
+            CYBERSABER VR
+          </h1>
+          <span class="text-[10px] font-mono-code uppercase px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-400/30">
+            SDT + Fitts's Law Lab
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400 hidden sm:block">
+          <span class="text-rose-400 font-semibold">Red Block → Red Saber</span> •
+          <span class="text-cyan-400 font-semibold">Blue Block → Blue Saber</span> •
+          <span class="text-emerald-400 font-semibold">Green Block → SKIP (Do Not Hit)</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Center Quick Actions: Stream Control & Manual Block Spawners -->
+    <div class="flex flex-wrap items-center gap-1.5">
+      <button id="btn-toggle-stream" class="px-3 py-1.5 rounded-lg font-cyber text-xs font-bold tracking-wide bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25 transition flex items-center gap-1.5">
+        <i id="icon-stream" class="fa-solid fa-pause"></i>
+        <span id="label-stream">PAUSE STREAM</span>
+      </button>
+
+      <!-- Single Trial Spawners -->
+      <div class="flex items-center bg-slate-900/90 border border-slate-700/70 rounded-lg p-0.5 gap-1">
+        <span class="text-[10px] text-slate-400 px-1.5 hidden xl:inline">Spawn:</span>
+        <button onclick="spawnSingleBlock('red')" title="Spawn Red Block Now" class="px-2 py-1 rounded text-[11px] font-semibold bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 border border-rose-500/40 transition">
+          +Red
+        </button>
+        <button onclick="spawnSingleBlock('blue')" title="Spawn Blue Block Now" class="px-2 py-1 rounded text-[11px] font-semibold bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 border border-cyan-500/40 transition">
+          +Blue
+        </button>
+        <button onclick="spawnSingleBlock('green')" title="Spawn Green Skip Block Now" class="px-2 py-1 rounded text-[11px] font-semibold bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 border border-emerald-500/40 transition">
+          +Green (Skip)
+        </button>
+      </div>
+
+      <!-- Control Mode Switcher -->
+      <button id="btn-control-mode" onclick="toggleControlMode()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-500/20 hover:bg-indigo-500/35 text-indigo-200 border border-indigo-400/30 transition flex items-center gap-1.5" title="Switch between Dual-Saber Rig and Single Cursor Click-Select Mode">
+        <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
+        <span id="label-control-mode">Mode: Dual-Saber Rig</span>
+      </button>
+    </div>
+
+    <!-- Right Controls: VR, Sound, Panel Toggles, Reset -->
+    <div class="flex items-center gap-1.5">
+      <button id="btn-vr" onclick="toggleVRSession()" class="px-2.5 py-1.5 rounded-lg text-xs font-cyber font-semibold bg-fuchsia-600/30 hover:bg-fuchsia-600/50 text-fuchsia-200 border border-fuchsia-400/40 transition flex items-center gap-1.5">
+        <i class="fa-solid fa-vr-cardboard"></i>
+        <span id="label-vr">ENTER VR</span>
+      </button>
+
+      <button id="btn-audio" onclick="toggleAudio()" class="p-1.5 px-2.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-600 transition" title="Toggle Web Audio Synthesizer">
+        <i id="icon-audio" class="fa-solid fa-volume-high"></i>
+      </button>
+
+      <button onclick="exportTelemetryCSV()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition flex items-center gap-1" title="Download CSV of all trials">
+        <i class="fa-solid fa-download text-cyan-400"></i>
+        <span class="hidden md:inline">CSV</span>
+      </button>
+
+      <button onclick="resetExperiment()" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-rose-950/80 hover:bg-rose-900 text-rose-200 border border-rose-700/50 transition flex items-center gap-1" title="Reset All Metrics & Trials">
+        <i class="fa-solid fa-rotate-left"></i>
+        <span class="hidden md:inline">Reset</span>
+      </button>
+
+      <button onclick="toggleHUDPanels()" class="p-1.5 px-2 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 lg:hidden" title="Show/Hide Panels">
+        <i class="fa-solid fa-sliders"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- LEFT PANEL: (X, Y) SPAWN COORDINATES, SPEED & FITTS'S LAW CALCULATOR -->
+  <aside id="panel-left" class="fixed top-16 left-2 bottom-12 w-80 max-w-[92vw] z-20 flex flex-col gap-2 overflow-y-auto pr-1 transition-transform duration-300">
+
+    <!-- 1. AUTO-RANDOM (X, Y) COORDINATES & SPEED GENERATOR PANEL -->
+    <section class="hud-glass rounded-xl p-3 flex flex-col gap-2.5">
+      <div class="flex items-center justify-between border-b border-slate-700/60 pb-1.5">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-satellite-dish text-cyan-400 text-xs animate-pulse"></i>
+          <h2 class="font-cyber text-xs font-bold tracking-wider uppercase text-slate-100">
+            Auto-Random (X, Y) & Speed
+          </h2>
+        </div>
+        <span class="px-1.5 py-0.5 text-[9px] font-mono-code font-bold uppercase rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+          AUTO-GEN ACTIVE
+        </span>
+      </div>
+
+      <!-- Auto-Generation Pattern Mode Selector -->
+      <div class="flex flex-col gap-1">
+        <label class="text-[10px] text-slate-400 flex items-center justify-between">
+          <span>Auto Trajectory & Speed Mode:</span>
+          <span class="text-cyan-300 font-mono-code text-[9px]">Zero Manual Input</span>
+        </label>
+        <select id="select-auto-mode" onchange="updateSpawnParams()" class="w-full bg-slate-900/95 text-cyan-200 border border-cyan-500/40 rounded-lg px-2 py-1 text-[11px] font-medium outline-none">
+          <option value="per_block_random" selected>1. Per-Block Random (X, Y) & Random Speed</option>
+          <option value="inflight_shift">2. Random Spawn + Mid-Flight Auto (X,Y) & Speed Shift</option>
+          <option value="lissajous_jitter">3. Auto Lissajous Wave + Random Speed Jitter</option>
+        </select>
+      </div>
+
+      <!-- Live 2D Auto-Spawn Radar & Real-Time Readouts -->
+      <div class="grid grid-cols-12 gap-2 items-center bg-slate-950/70 p-2 rounded-lg border border-slate-800/90">
+        <!-- 2D Radar Canvas showing auto-generated blocks in real time -->
+        <div class="col-span-5 flex flex-col items-center">
+          <div class="relative w-28 h-24 rounded-lg bg-slate-950 border border-cyan-500/40 overflow-hidden shadow-inner">
+            <canvas id="auto-radar-canvas" width="112" height="96" class="w-full h-full block"></canvas>
+            <div class="absolute top-1 left-1.5 text-[8px] font-mono-code text-cyan-400/80 uppercase pointer-events-none">
+              LIVE RADAR
+            </div>
+          </div>
+          <span class="text-[9px] text-slate-400 mt-1 font-mono-code" id="xy-pad-readout">
+            Auto-tracking...
+          </span>
+        </div>
+
+        <!-- Latest Auto-Generated Block Telemetry Readout -->
+        <div class="col-span-7 flex flex-col gap-1.5 font-mono-code">
+          <div class="bg-slate-900/90 border border-slate-800 rounded px-2 py-1">
+            <div class="text-[9px] text-slate-400 uppercase">Last Auto (X, Y) Spawn</div>
+            <div id="live-auto-xy" class="text-xs font-bold text-cyan-300">X: 0.00m, Y: 1.60m</div>
+          </div>
+          <div class="bg-slate-900/90 border border-slate-800 rounded px-2 py-1">
+            <div class="text-[9px] text-slate-400 uppercase">Last Auto Speed (v)</div>
+            <div id="live-auto-speed" class="text-xs font-bold text-amber-300">28.0 m/s</div>
+          </div>
+          <div class="bg-slate-900/90 border border-slate-800 rounded px-2 py-1 flex items-center justify-between">
+            <span class="text-[9px] text-slate-400 uppercase">Arrival Window</span>
+            <span id="live-auto-eta" class="text-[11px] font-bold text-emerald-300">0.93 s</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Auto-Generator Envelope Bounds (Random Range Limits) -->
+      <div class="flex flex-col gap-1.5 pt-1 border-t border-slate-800/80">
+        <div class="flex items-center justify-between text-[10px] text-slate-400">
+          <span>Auto-Random Envelope Bounds</span>
+          <span class="font-mono-code text-[9px] text-fuchsia-300">High-Speed RNG</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <div class="flex justify-between text-[10px]">
+              <span class="text-slate-300">Auto X Spread</span>
+              <span id="val-rand-x" class="font-mono-code text-cyan-300">±1.85 m</span>
+            </div>
+            <input id="slider-rand-x" type="range" min="0.4" max="2.6" step="0.05" value="1.85" class="w-full" oninput="updateSpawnParams()" />
+          </div>
+          <div>
+            <div class="flex justify-between text-[10px]">
+              <span class="text-slate-300">Auto Y Range</span>
+              <span id="val-rand-y" class="font-mono-code text-cyan-300">0.7 - 2.6 m</span>
+            </div>
+            <div class="flex gap-1">
+              <input id="slider-rand-ymin" type="range" min="0.6" max="1.6" step="0.1" value="0.7" class="w-1/2" oninput="updateSpawnParams()" />
+              <input id="slider-rand-ymax" type="range" min="1.7" max="2.8" step="0.1" value="2.6" class="w-1/2" oninput="updateSpawnParams()" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Random Speed Min/Max (Higher Default Lower Bound: 22 - 38 m/s) & Spawn Cadence -->
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <div>
+            <div class="flex justify-between text-[10px] mb-0.5">
+              <span class="text-slate-300">Auto Speed Range</span>
+              <span id="val-speed" class="font-mono-code text-amber-300 font-semibold">22 - 38 m/s</span>
+            </div>
+            <div class="flex gap-1">
+              <input id="slider-speed-min" type="range" min="15" max="45" step="1" value="22" class="w-1/2" oninput="updateSpawnParams()" title="Min Random Speed (m/s)" />
+              <input id="slider-speed-max" type="range" min="22" max="60" step="1" value="38" class="w-1/2" oninput="updateSpawnParams()" title="Max Random Speed (m/s)" />
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between text-[10px] mb-0.5">
+              <span class="text-slate-300">Auto Spawn Rate</span>
+              <span id="val-interval" class="font-mono-code text-amber-300 font-semibold">750 ms</span>
+            </div>
+            <input id="slider-interval" type="range" min="300" max="2200" step="50" value="750" class="w-full" oninput="updateSpawnParams()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Block Color Probability Weights -->
+      <div class="pt-1 border-t border-slate-800">
+        <div class="flex justify-between items-center text-[10px] text-slate-400 mb-1">
+          <span>Auto Color Mix (Red / Blue / Green Skip):</span>
+          <span id="val-prob-summary" class="font-mono-code text-slate-200">35% R / 35% B / 30% G</span>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5 text-[10px]">
+          <div class="bg-rose-950/40 border border-rose-500/30 rounded p-1">
+            <div class="flex justify-between text-rose-300 font-semibold"><span>Red</span><span id="lbl-prob-r">35%</span></div>
+            <input id="slider-prob-r" type="range" min="0" max="100" step="5" value="35" class="w-full mt-0.5" oninput="updateProbabilities()" />
+          </div>
+          <div class="bg-cyan-950/40 border border-cyan-500/30 rounded p-1">
+            <div class="flex justify-between text-cyan-300 font-semibold"><span>Blue</span><span id="lbl-prob-b">35%</span></div>
+            <input id="slider-prob-b" type="range" min="0" max="100" step="5" value="35" class="w-full mt-0.5" oninput="updateProbabilities()" />
+          </div>
+          <div class="bg-emerald-950/40 border border-emerald-500/30 rounded p-1">
+            <div class="flex justify-between text-emerald-300 font-semibold"><span>Green</span><span id="lbl-prob-g">30%</span></div>
+            <input id="slider-prob-g" type="range" min="0" max="100" step="5" value="30" class="w-full mt-0.5" oninput="updateProbabilities()" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. LIVE FITTS'S LAW (Δt = a + b · log(d/w)) CONSECUTIVE-HIT SOLVER & REGRESSION PLOT -->
+    <section class="hud-glass rounded-xl p-3 flex flex-col gap-2">
+      <div class="flex items-center justify-between border-b border-slate-700/60 pb-1.5">
+        <div class="flex items-center gap-1.5">
+          <i class="fa-solid fa-square-root-variable text-fuchsia-400 text-xs"></i>
+          <h2 class="font-cyber text-xs font-bold tracking-wider uppercase text-slate-100">
+            Live Fitts Solver: <span class="text-fuchsia-300 font-mono-code lowercase">Δt = a + b·log(d/w)</span>
+          </h2>
+        </div>
+        <select id="select-log-base" onchange="updateFittsCalculator()" class="bg-slate-900 text-fuchsia-300 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] font-mono-code outline-none">
+          <option value="2" selected>log₂(d/w)</option>
+          <option value="e">ln(d/w)</option>
+          <option value="10">log₁₀(d/w)</option>
+          <option value="shannon">log₂(d/w + 1)</option>
+        </select>
+      </div>
+
+      <!-- Solver Method Selector -->
+      <div class="flex items-center justify-between gap-2 text-[10px]">
+        <span class="text-slate-400">Estimation Method:</span>
+        <select id="select-solver-mode" onchange="updateFittsCalculator()" class="bg-slate-900 text-cyan-300 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] font-mono-code outline-none">
+          <option value="ols" selected>Cumulative OLS Regression (All Hits)</option>
+          <option value="pairwise">Consecutive 2-Pair Exact Solve</option>
+        </select>
+      </div>
+
+      <!-- Live Solved Formula & Inter-Hit Telemetry Box -->
+      <div class="bg-slate-950/90 border border-fuchsia-500/35 rounded-lg p-2 font-mono-code">
+        <div class="flex justify-between items-center text-[10px] text-slate-400">
+          <span id="formula-symbolic">Δt = a + b · log₂(d / w)</span>
+          <span class="text-fuchsia-300">Last ID = <strong id="val-fitts-id">—</strong></span>
+        </div>
+        <div id="formula-numeric" class="text-[11px] text-emerald-300 font-semibold mt-0.5 truncate">
+          Waiting for 2 consecutive hits to solve a & b...
+        </div>
+
+        <!-- Latest Consecutive Hit Pair Measurements -->
+        <div class="grid grid-cols-3 gap-1.5 mt-1.5 pt-1.5 border-t border-slate-800/90 text-center">
+          <div class="bg-slate-900/90 rounded p-1">
+            <div class="text-[8px] uppercase text-slate-400">Hit Gap (Δt)</div>
+            <div id="val-last-dt" class="text-xs font-bold text-amber-300">— ms</div>
+          </div>
+          <div class="bg-slate-900/90 rounded p-1">
+            <div class="text-[8px] uppercase text-slate-400">Hit Dist (d)</div>
+            <div id="val-fitts-d" class="text-xs font-bold text-cyan-300">— m</div>
+          </div>
+          <div class="bg-slate-900/90 rounded p-1">
+            <div class="text-[8px] uppercase text-slate-400">Ratio (d/w)</div>
+            <div id="val-last-ratio" class="text-xs font-bold text-fuchsia-300">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Regression Plot Canvas: Δt (y-axis) vs log(d/w) (x-axis) -->
+      <div class="relative w-full h-24 rounded-lg bg-slate-950 border border-slate-800 overflow-hidden">
+        <canvas id="fitts-regression-canvas" width="288" height="96" class="w-full h-full block"></canvas>
+        <div class="absolute top-1 left-1.5 text-[8px] font-mono-code text-slate-400 pointer-events-none">
+          Δt vs log(d/w) Live Fit
+        </div>
+        <div id="fitts-pairs-count" class="absolute top-1 right-1.5 text-[8px] font-mono-code text-fuchsia-300 pointer-events-none">
+          Pairs: 0
+        </div>
+      </div>
+
+      <!-- Block Width (w) Control & Auto-Jitter Toggle -->
+      <div class="pt-1 border-t border-slate-800/80">
+        <div class="flex justify-between items-center text-[11px] mb-0.5">
+          <span class="text-slate-300">Base Block Width <code class="text-emerald-300">w</code></span>
+          <div class="flex items-center gap-2">
+            <label class="flex items-center gap-1 text-[9px] text-slate-400 cursor-pointer" title="Automatically vary block width w slightly per spawn so d/w spans a wider range">
+              <input id="chk-auto-w" type="checkbox" checked onchange="updateFittsCalculator()" class="accent-emerald-400" />
+              <span>Auto-Vary w</span>
+            </label>
+            <span id="val-fitts-w" class="font-mono-code text-emerald-300">0.45 m</span>
+          </div>
+        </div>
+        <input id="slider-fitts-w" type="range" min="0.20" max="0.95" step="0.05" value="0.45" class="w-full" oninput="updateFittsCalculator()" />
+      </div>
+    </section>
+  </aside>
+
+  <!-- RIGHT PANEL: SIGNAL DETECTION THEORY (SDT) + LIVE REACTION TIME (a) & BANDWIDTH (b) -->
+  <aside id="panel-right" class="fixed top-16 right-2 bottom-12 w-80 md:w-96 max-w-[92vw] z-20 flex flex-col gap-2 overflow-y-auto pl-1 transition-transform duration-300">
+
+    <!-- 1. SIGNAL DETECTION THEORY (SDT) + FITTS'S LAW (a & b) METRICS CARD -->
+    <section class="hud-glass rounded-xl p-3 flex flex-col gap-2.5">
+      <div class="flex items-center justify-between border-b border-slate-700/60 pb-1.5">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-chart-pie text-emerald-400 text-xs"></i>
+          <h2 class="font-cyber text-xs font-bold tracking-wider uppercase text-slate-100">
+            SDT Rates & Fitts <span class="text-fuchsia-300 lowercase font-mono-code">(a, b)</span>
+          </h2>
+        </div>
+        <span id="sdt-total-trials" class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+          Trials: 0
+        </span>
+      </div>
+
+      <!-- 6 Core Metrics Grid: Hit Rate, Miss Rate, Correct Reject, False Alarm + Reaction Time (a) & Bandwidth (b) -->
+      <div class="grid grid-cols-2 gap-2">
+        <!-- HIT RATE -->
+        <div class="bg-emerald-950/35 border border-emerald-500/40 rounded-lg p-2">
+          <div class="flex justify-between items-center">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300">Hit Rate</span>
+            <span id="count-hits" class="text-[10px] font-mono-code text-emerald-200 bg-emerald-500/20 px-1.5 rounded">0</span>
+          </div>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="rate-hit-pct" class="font-cyber text-lg font-bold text-emerald-400">0.0%</span>
+            <span id="rate-hit-dec" class="font-mono-code text-[11px] text-slate-400">P = 0.00</span>
+          </div>
+          <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden mt-1">
+            <div id="bar-hit" class="h-full bg-emerald-400 transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <p class="text-[9px] text-slate-400 mt-1">Red→Red or Blue→Blue</p>
+        </div>
+
+        <!-- MISS RATE -->
+        <div class="bg-amber-950/35 border border-amber-500/40 rounded-lg p-2">
+          <div class="flex justify-between items-center">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300">Miss Rate</span>
+            <span id="count-misses" class="text-[10px] font-mono-code text-amber-200 bg-amber-500/20 px-1.5 rounded">0</span>
+          </div>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="rate-miss-pct" class="font-cyber text-lg font-bold text-amber-400">0.0%</span>
+            <span id="rate-miss-dec" class="font-mono-code text-[11px] text-slate-400">P = 0.00</span>
+          </div>
+          <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden mt-1">
+            <div id="bar-miss" class="h-full bg-amber-400 transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <p class="text-[9px] text-slate-400 mt-1">Unsliced Red/Blue target</p>
+        </div>
+
+        <!-- CORRECT REJECTION RATE -->
+        <div class="bg-cyan-950/35 border border-cyan-500/40 rounded-lg p-2">
+          <div class="flex justify-between items-center">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-300">Correct Reject</span>
+            <span id="count-cr" class="text-[10px] font-mono-code text-cyan-200 bg-cyan-500/20 px-1.5 rounded">0</span>
+          </div>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="rate-cr-pct" class="font-cyber text-lg font-bold text-cyan-400">0.0%</span>
+            <span id="rate-cr-dec" class="font-mono-code text-[11px] text-slate-400">P = 0.00</span>
+          </div>
+          <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden mt-1">
+            <div id="bar-cr" class="h-full bg-cyan-400 transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <p class="text-[9px] text-slate-400 mt-1">Green block safely skipped</p>
+        </div>
+
+        <!-- FALSE ALARM RATE -->
+        <div class="bg-rose-950/35 border border-rose-500/40 rounded-lg p-2">
+          <div class="flex justify-between items-center">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-rose-300">False Alarm</span>
+            <span id="count-fa" class="text-[10px] font-mono-code text-rose-200 bg-rose-500/20 px-1.5 rounded">0</span>
+          </div>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="rate-fa-pct" class="font-cyber text-lg font-bold text-rose-400">0.0%</span>
+            <span id="rate-fa-dec" class="font-mono-code text-[11px] text-slate-400">P = 0.00</span>
+          </div>
+          <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden mt-1">
+            <div id="bar-fa" class="h-full bg-rose-500 transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <p class="text-[9px] text-slate-400 mt-1">Sliced Green / Wrong saber</p>
+        </div>
+
+        <!-- FITTS'S LAW PARAMETER 'a': REACTION TIME -->
+        <div class="bg-fuchsia-950/40 border border-fuchsia-500/50 rounded-lg p-2">
+          <div class="flex justify-between items-center">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-fuchsia-300">Reaction Time (a)</span>
+            <span class="text-[9px] font-mono-code text-fuchsia-200 bg-fuchsia-500/20 px-1.5 rounded">Intercept</span>
+          </div>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="card-fitts-a" class="font-cyber text-base font-bold text-fuchsia-400">— ms</span>
+            <span id="card-fitts-a-sec" class="font-mono-code text-[10px] text-slate-400">a in Δt</span>
+          </div>
+          <p class="text-[9px] text-slate-400 mt-1">From Δt = a + b·log(d/w)</p>
+        </div>
+
+        <!-- FITTS'S LAW PARAMETER 'b': BANDWIDTH -->
+        <div class="bg-indigo-950/40 border border-indigo-400/50 rounded-lg p-2">
+          <div class="flex justify-between items-center">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Bandwidth (b)</span>
+            <span id="card-fitts-ip" class="text-[9px] font-mono-code text-indigo-200 bg-indigo-500/20 px-1.5 rounded">IP: — b/s</span>
+          </div>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="card-fitts-b" class="font-cyber text-base font-bold text-indigo-400">— ms/bit</span>
+          </div>
+          <p class="text-[9px] text-slate-400 mt-1">Slope b & Throughput (1/b)</p>
+        </div>
+      </div>
+
+      <!-- Psychophysics Sensitivity (d') & Criterion (c) + Wrong Saber Policy -->
+      <div class="bg-slate-950/80 border border-slate-800 rounded-lg p-2 flex flex-col gap-1.5">
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div>
+            <div class="text-[9px] text-slate-400 uppercase">Sensitivity d'</div>
+            <div id="val-dprime" class="font-mono-code text-xs font-bold text-indigo-300">0.00</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-slate-400 uppercase">Criterion c</div>
+            <div id="val-criterion" class="font-mono-code text-xs font-bold text-indigo-300">0.00</div>
+          </div>
+          <div>
+            <div class="text-[9px] text-slate-400 uppercase">Accuracy</div>
+            <div id="val-overall-acc" class="font-mono-code text-xs font-bold text-emerald-300">0.0%</div>
+          </div>
+        </div>
+        <label class="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-800/80 cursor-pointer">
+          <span>Count wrong-saber strike (e.g. Red hit by Blue) as False Alarm:</span>
+          <input id="chk-wrong-saber-fa" type="checkbox" checked class="accent-rose-500" />
+        </label>
+      </div>
+    </section>
+
+    <!-- 2. PER-TRIAL TELEMETRY LOG TABLE -->
+    <section class="hud-glass rounded-xl p-3 flex-1 flex flex-col min-h-[190px] overflow-hidden">
+      <div class="flex items-center justify-between border-b border-slate-700/60 pb-1.5 mb-1.5">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-table-list text-cyan-400 text-xs"></i>
+          <h2 class="font-cyber text-xs font-bold tracking-wider uppercase text-slate-100">
+            Trial Telemetry & Fitts RT Log
+          </h2>
+        </div>
+        <span class="text-[10px] text-slate-400 font-mono-code">Latest 40</span>
+      </div>
+
+      <div class="overflow-y-auto flex-1 rounded border border-slate-800/90 bg-slate-950/60">
+        <table class="w-full text-left border-collapse font-mono-code text-[10px]">
+          <thead class="sticky top-0 bg-slate-900 text-slate-400 border-b border-slate-800">
+            <tr>
+              <th class="py-1 px-1">#</th>
+              <th class="py-1 px-1">Blk</th>
+              <th class="py-1 px-1 text-amber-300" title="Auto-Generated Block Speed (m/s)">Spd</th>
+              <th class="py-1 px-1" title="Fitts's Law d/w Ratio">d/w</th>
+              <th class="py-1 px-1 text-amber-200" title="Time Gap Δt Between Consecutive Hits (ms)">Δt</th>
+              <th class="py-1 px-1 text-fuchsia-300" title="Calculated Reaction Time a (ms)">a(RT)</th>
+              <th class="py-1 px-1 text-indigo-300" title="Calculated Bandwidth b (ms/bit)">b(BW)</th>
+              <th class="py-1 px-1">Outcome</th>
+            </tr>
+          </thead>
+          <tbody id="telemetry-tbody" class="divide-y divide-slate-800/60 text-slate-300">
+            <tr>
+              <td colspan="8" class="py-6 text-center text-slate-500">
+                Hit 2+ Red/Blue blocks consecutively to solve a (Reaction Time) & b (Bandwidth)...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </aside>
+
+  <!-- BOTTOM HUD CONTROLS & SABER LEGEND -->
+  <footer class="fixed bottom-2 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full hud-glass flex items-center gap-4 text-[11px] whitespace-nowrap">
+    <div class="flex items-center gap-1.5">
+      <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_#ff2a5f]"></span>
+      <span class="text-rose-300 font-semibold">Red Saber:</span>
+      <span class="text-slate-300">Left Saber / <kbd class="px-1 py-0.5 bg-slate-800 rounded border border-slate-600 text-[10px]">L-Click</kbd> or <kbd class="px-1 py-0.5 bg-slate-800 rounded border border-slate-600 text-[10px]">Q</kbd></span>
+    </div>
+    <div class="h-3 w-px bg-slate-700"></div>
+    <div class="flex items-center gap-1.5">
+      <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#00e5ff]"></span>
+      <span class="text-cyan-300 font-semibold">Blue Saber:</span>
+      <span class="text-slate-300">Right Saber / <kbd class="px-1 py-0.5 bg-slate-800 rounded border border-slate-600 text-[10px]">R-Click</kbd> or <kbd class="px-1 py-0.5 bg-slate-800 rounded border border-slate-600 text-[10px]">E</kbd></span>
+    </div>
+    <div class="h-3 w-px bg-slate-700 hidden sm:block"></div>
+    <div class="hidden sm:flex items-center gap-1.5">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#00ff66]"></span>
+      <span class="text-emerald-300 font-semibold">Green Block:</span>
+      <span class="text-slate-300">SKIP (Avoid contact for Correct Rejection)</span>
+    </div>
+  </footer>
+
+  <button id="btn-vr-big" onclick="toggleVRSession()" style="position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:60;padding:18px 40px;font-size:28px;font-weight:800;border-radius:16px;border:2px solid #e879f9;background:#a21caf;color:#fff;font-family:Orbitron,sans-serif;box-shadow:0 0 30px #c026d3;cursor:pointer">ENTER VR</button>
+  <div id="vr-status" style="position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:60;font-size:14px;color:#e2e8f0;background:rgba(9,12,26,.85);padding:6px 14px;border-radius:999px;white-space:nowrap">Checking VR support...</div>
+
+  <!-- MAIN APPLICATION & THREE.JS LOGIC -->
+  <script>
+    /*************************************************************************
+     * 1. EXPERIMENT STATE & CONFIGURATION
+     *************************************************************************/
+    const state = {
+      streamActive: true,
+      controlMode: 'dual', // 'dual' (Beat Saber Twin Rig) or 'cursor' (Single Cursor + Click/Key Select)
+      autoMode: 'per_block_random', // 'per_block_random', 'inflight_shift', 'lissajous_jitter'
+      spawnX: 0.0,
+      spawnY: 1.60,
+      randXSpread: 1.85,
+      randYMin: 0.70,
+      randYMax: 2.60,
+      spawnZ: -26.0,       // Distance down the neon tunnel where blocks appear
+      strikeZ: 0.0,        // Player saber plane Z
+      despawnZ: 3.2,       // Past player plane -> triggers Miss (Red/Blue) or Correct Rejection (Green)
+      speedMin: 22.0,      // Minimum auto-generated block speed (m/s)
+      speedMax: 38.0,      // Maximum auto-generated block speed (m/s)
+      lastAutoSpeed: 28.0, // Most recently generated block speed (m/s)
+      spawnInterval: 750,  // Base spawn interval (ms)
+      probRed: 35,
+      probBlue: 35,
+      probGreen: 30,
+
+      // Fitts's Law Live Identification State: Δt = a + b * log(d / w)
+      fittsW: 0.45,        // Base block width w (meters)
+      autoVaryW: true,     // Slightly vary w per block so d/w has rich spread
+      logBase: '2',        // '2', 'e', '10', 'shannon'
+      lastHitTimestamp: null,
+      lastHitPos: null,    // THREE.Vector2(x, y) of previous hit / action block
+      fittsPairs: [],      // Array of { dt, d, w, ratio, id, timestamp } from consecutive actions
+      calcA: null,         // Exponentially weighted Reaction Time a (ms)
+      calcB: null,         // Exponentially weighted Bandwidth slope b (ms/bit)
+      lastDeltaT: null,    // Latest inter-hit/action time gap Δt (ms)
+      lastD: null,         // Latest inter-hit distance d (m)
+      lastRatio: null,     // Latest d/w ratio
+      lastID: null,        // Latest log(d/w)
+
+      // Signal Detection Theory Counts
+      hits: 0,
+      misses: 0,
+      correctRejections: 0,
+      falseAlarms: 0,
+      trialCounter: 0,
+      empiricalRTs: [],
+      trialsLog: [],
+
+      // Mouse / Pointer tracking in Strike Plane (Z = 0)
+      pointerWorld: new THREE.Vector3(0, 1.6, 0),
+      redSaberTip: new THREE.Vector3(-0.45, 1.6, 0),
+      blueSaberTip: new THREE.Vector3(0.45, 1.6, 0),
+      redSlashTimer: 0,
+      blueSlashTimer: 0,
+      activeCursorSaber: 'both',
+
+      // Audio
+      audioEnabled: true
+    };
+
+    /*************************************************************************
+     * 2. SYNTHESIZED WEB AUDIO API SOUND ENGINE
+     *************************************************************************/
+    let audioCtx = null;
+    function ensureAudio() {
+      if (!state.audioEnabled) return null;
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) audioCtx = new AudioContextClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function playSound(type) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      if (type === 'hit_red' || type === 'hit_blue') {
+        // Futuristic laser saber slice + harmonic chord
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        const baseFreq = type === 'hit_red' ? 520 : 660;
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.16);
+
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.18);
+      } else if (type === 'false_alarm') {
+        // Low dissonant buzzer for hitting Green Skip block or wrong color
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc1.type = 'sawtooth';
+        osc2.type = 'square';
+        osc1.frequency.setValueAtTime(135, now);
+        osc2.frequency.setValueAtTime(142, now);
+
+        gain.gain.setValueAtTime(0.24, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.32);
+        osc2.stop(now + 0.32);
+      } else if (type === 'correct_rejection') {
+        // Pleasant high crystal chime when Green block passes safely
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(1320, now + 0.14);
+
+        gain.gain.setValueAtTime(0.10, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      } else if (type === 'miss') {
+        // Soft descending alert
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.22);
+
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.24);
+      } else if (type === 'swing') {
+        // Subtle saber whoosh
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(290, now);
+        osc.frequency.exponentialRampToValueAtTime(120, now + 0.09);
+        gain.gain.setValueAtTime(0.07, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.09);
+      }
+    }
+
+    function toggleAudio() {
+      state.audioEnabled = !state.audioEnabled;
+      const icon = document.getElementById('icon-audio');
+      icon.className = state.audioEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-slate-500';
+    }
+
+    /*************************************************************************
+     * 3. THREE.JS SCENE, NEON CYBER ARENA, SABERS & TARGET RETICLES
+     *************************************************************************/
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x04050c);
+    scene.fog = new THREE.FogExp2(0x04050c, 0.028);
+
+    const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1.75, 3.3);
+    camera.lookAt(0, 1.5, -8);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.xr.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.65);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xa5f3fc, 0.9);
+    dirLight.position.set(3, 8, 5);
+    scene.add(dirLight);
+
+    const pointLightRed = new THREE.PointLight(0xff2a5f, 1.6, 18);
+    pointLightRed.position.set(-3.2, 2.2, -4);
+    scene.add(pointLightRed);
+
+    const pointLightBlue = new THREE.PointLight(0x00e5ff, 1.6, 18);
+    pointLightBlue.position.set(3.2, 2.2, -4);
+    scene.add(pointLightBlue);
+
+    // Cyber Tunnel Grid & Neon Rails
+    const arenaGroup = new THREE.Group();
+    scene.add(arenaGroup);
+
+    const gridFloor = new THREE.GridHelper(60, 60, 0x00e5ff, 0x1e293b);
+    gridFloor.position.set(0, 0, -15);
+    arenaGroup.add(gridFloor);
+
+    const gridCeiling = new THREE.GridHelper(60, 60, 0xff2a5f, 0x1e1b4b);
+    gridCeiling.position.set(0, 4.2, -15);
+    arenaGroup.add(gridCeiling);
+
+    // Glowing Tunnel Arch Frames along Z
+    const archFrames = [];
+    const archGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(6.2, 3.8, 0.08));
+    for (let i = 0; i < 10; i++) {
+      const mat = new THREE.LineBasicMaterial({
+        color: i % 2 === 0 ? 0x00e5ff : 0xff2a5f,
+        transparent: true,
+        opacity: 0.35
+      });
+      const frame = new THREE.LineSegments(archGeo, mat);
+      frame.position.set(0, 1.9, -i * 3.2);
+      arenaGroup.add(frame);
+      archFrames.push(frame);
+    }
+
+    // Strike Zone Plane Indicator (Z = 0)
+    const strikeZoneGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(5.6, 2.6));
+    const strikeZoneMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.5 });
+    const strikeZoneFrame = new THREE.LineSegments(strikeZoneGeo, strikeZoneMat);
+    strikeZoneFrame.position.set(0, 1.7, state.strikeZ);
+    scene.add(strikeZoneFrame);
+
+    // Spawn Coordinate Preview Reticle (shows where fixed X, Y is in the tunnel)
+    const spawnPreviewGroup = new THREE.Group();
+    const ringGeo = new THREE.RingGeometry(0.24, 0.30, 32);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x00e5ff, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
+    const spawnRing = new THREE.Mesh(ringGeo, ringMat);
+    spawnPreviewGroup.add(spawnRing);
+
+    // Trajectory guide line from spawn (X,Y,Z_spawn) to strike plane (X,Y,0)
+    const trajPoints = [new THREE.Vector3(0, 0, state.spawnZ), new THREE.Vector3(0, 0, 0)];
+    const trajGeo = new THREE.BufferGeometry().setFromPoints(trajPoints);
+    const trajMat = new THREE.LineDashedMaterial({ color: 0x38bdf8, dashSize: 0.6, gapSize: 0.4, transparent: true, opacity: 0.45 });
+    const trajLine = new THREE.Line(trajGeo, trajMat);
+    trajLine.computeLineDistances();
+    spawnPreviewGroup.add(trajLine);
+    spawnPreviewGroup.position.set(state.spawnX, state.spawnY, 0);
+    scene.add(spawnPreviewGroup);
+
+    /*************************************************************************
+     * 4. BUILD LIGHT SABERS (RED SABER & BLUE SABER)
+     *************************************************************************/
+    function createSaberMesh(hexColor) {
+      const saberPivot = new THREE.Group();
+
+      // Metallic Hilt
+      const hiltGeo = new THREE.CylinderGeometry(0.032, 0.038, 0.32, 16);
+      const hiltMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.25 });
+      const hilt = new THREE.Mesh(hiltGeo, hiltMat);
+      hilt.position.y = -0.16;
+      saberPivot.add(hilt);
+
+      // Glowing Inner Core Blade
+      const coreGeo = new THREE.CylinderGeometry(0.018, 0.022, 1.25, 16);
+      const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const core = new THREE.Mesh(coreGeo, coreMat);
+      core.position.y = 0.625;
+      saberPivot.add(core);
+
+      // Neon Outer Aura Blade
+      const auraGeo = new THREE.CylinderGeometry(0.048, 0.052, 1.28, 16);
+      const auraMat = new THREE.MeshBasicMaterial({
+        color: hexColor,
+        transparent: true,
+        opacity: 0.55,
+        blending: THREE.AdditiveBlending
+      });
+      const aura = new THREE.Mesh(auraGeo, auraMat);
+      aura.position.y = 0.625;
+      saberPivot.add(aura);
+
+      // Saber Hit Range Ring at the blade center
+      const tipRingGeo = new THREE.RingGeometry(0.18, 0.22, 24);
+      const tipRingMat = new THREE.MeshBasicMaterial({
+        color: hexColor,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.65
+      });
+      const tipRing = new THREE.Mesh(tipRingGeo, tipRingMat);
+      tipRing.position.set(0, 0.75, 0);
+      saberPivot.add(tipRing);
+
+      return { group: saberPivot, aura, tipRing };
+    }
+
+    const redSaber = createSaberMesh(0xff2a5f);
+    const blueSaber = createSaberMesh(0x00e5ff);
+    scene.add(redSaber.group);
+    scene.add(blueSaber.group);
+
+    /*************************************************************************
+     * 4b. VR RIG, FREE 6-DOF CONTROLLER SABERS, TRAILS, IN-VR HUD
+     *************************************************************************/
+    const rig = new THREE.Group();   // player dolly (moved back in VR so the strike plane is in front of you)
+    scene.add(rig);
+    rig.add(camera);
+
+    const xrPads = { red: null, blue: null };
+    const xrCtrls = [0, 1].map(i => {
+      const c = renderer.xr.getController(i);
+      rig.add(c);
+      c.addEventListener('connected', e => {
+        const h = e.data.handedness;
+        if (h !== 'left' && h !== 'right') return;
+        const k = h === 'left' ? 'red' : 'blue';           // left hand = red, right hand = blue
+        const sb = k === 'red' ? redSaber : blueSaber;
+        c.userData.k = k;
+        xrPads[k] = e.data.gamepad || null;
+        c.add(sb.group);                                   // saber now follows the controller's full position + orientation
+        sb.group.position.set(0, 0, 0);
+        sb.group.rotation.set(-Math.PI / 2, 0, 0);         // blade points along the controller ray
+        sb.group.visible = true;
+        resetTrails();
+      });
+      c.addEventListener('disconnected', () => {
+        const k = c.userData.k;
+        if (k) { (k === 'red' ? redSaber : blueSaber).group.visible = false; xrPads[k] = null; c.userData.k = null; }
+      });
+      return c;
+    });
+
+    renderer.xr.addEventListener('sessionstart', () => {
+      rig.position.set(0, 0, 1.4);
+      state.despawnZ = 0.9;
+      vrHud.visible = true;
+      resetTrails();
+    });
+    renderer.xr.addEventListener('sessionend', () => {
+      rig.position.set(0, 0, 0);
+      camera.position.set(0, 1.75, 3.3);
+      camera.rotation.set(0, 0, 0);
+      camera.lookAt(0, 1.5, -8);
+      state.despawnZ = 3.2;
+      vrHud.visible = false;
+      xrCtrls.forEach(c => { c.userData.k = null; });
+      xrPads.red = xrPads.blue = null;
+      [redSaber, blueSaber].forEach(sb => { scene.add(sb.group); sb.group.rotation.set(0, 0, 0); sb.group.visible = true; });
+      resetTrails();
+    });
+
+    function haptic(k) {
+      try {
+        const g = xrPads[k];
+        if (g && g.hapticActuators && g.hapticActuators[0]) g.hapticActuators[0].pulse(0.8, 60);
+      } catch (e) {}
+    }
+
+    // World-space blade segments (used for 3D collision + trails)
+    const saberSeg = { red: { a: new THREE.Vector3(), b: new THREE.Vector3() }, blue: { a: new THREE.Vector3(), b: new THREE.Vector3() } };
+    function computeSaberSegs() {
+      [['red', redSaber], ['blue', blueSaber]].forEach(([k, sb]) => {
+        sb.group.updateWorldMatrix(true, false);
+        saberSeg[k].a.set(0, 0.05, 0).applyMatrix4(sb.group.matrixWorld);
+        saberSeg[k].b.set(0, 1.27, 0).applyMatrix4(sb.group.matrixWorld);
+      });
+      if (renderer.xr.isPresenting) {
+        state.redSaberTip.copy(saberSeg.red.b);
+        state.blueSaberTip.copy(saberSeg.blue.b);
+      }
+    }
+
+    // Closest distance between two 3D segments
+    function segSegDist(p1, q1, p2, q2) {
+      const d1 = q1.clone().sub(p1), d2 = q2.clone().sub(p2), r = p1.clone().sub(p2);
+      const a = d1.dot(d1), e = d2.dot(d2), f = d2.dot(r), EPS = 1e-8;
+      let s = 0, t = 0;
+      if (a <= EPS && e <= EPS) return p1.distanceTo(p2);
+      if (a <= EPS) { t = THREE.MathUtils.clamp(f / e, 0, 1); }
+      else {
+        const c = d1.dot(r);
+        if (e <= EPS) { s = THREE.MathUtils.clamp(-c / a, 0, 1); }
+        else {
+          const b = d1.dot(d2), den = a * e - b * b;
+          s = den > EPS ? THREE.MathUtils.clamp((b * f - c * e) / den, 0, 1) : 0;
+          t = (b * s + f) / e;
+          if (t < 0) { t = 0; s = THREE.MathUtils.clamp(-c / a, 0, 1); }
+          else if (t > 1) { t = 1; s = THREE.MathUtils.clamp((b - c) / a, 0, 1); }
+        }
+      }
+      return p1.clone().addScaledVector(d1, s).distanceTo(p2.clone().addScaledVector(d2, t));
+    }
+
+    // Saber trail ribbons
+    function createTrail(hex) {
+      const N = 26, pos = new Float32Array(N * 6), col = new Float32Array(N * 6), idx = [];
+      const c = new THREE.Color(hex);
+      for (let i = 0; i < N; i++) {
+        const f = Math.pow(1 - i / (N - 1), 1.6);
+        col.set([c.r * f * 0.35, c.g * f * 0.35, c.b * f * 0.35, c.r * f, c.g * f, c.b * f], i * 6);
+        if (i < N - 1) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      g.setIndex(idx);
+      const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+        vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+      }));
+      m.frustumCulled = false;
+      scene.add(m);
+      return { mesh: m, N, pos, init: false };
+    }
+    const redTrail = createTrail(0xff2a5f);
+    const blueTrail = createTrail(0x00e5ff);
+    function resetTrails() { redTrail.init = false; blueTrail.init = false; }
+    function updateTrails() {
+      [['red', redTrail, redSaber], ['blue', blueTrail, blueSaber]].forEach(([k, t, sb]) => {
+        const a = saberSeg[k].a, b = saberSeg[k].b, v = [a.x, a.y, a.z, b.x, b.y, b.z];
+        if (!t.init) { for (let i = 0; i < t.N; i++) t.pos.set(v, i * 6); t.init = true; }
+        else { t.pos.copyWithin(6, 0, (t.N - 1) * 6); t.pos.set(v, 0); }
+        t.mesh.geometry.attributes.position.needsUpdate = true;
+        t.mesh.visible = sb.group.visible;
+      });
+    }
+
+    // In-VR floating scoreboard (the HTML HUD is not visible inside a headset)
+    var vrLastMsg = null;
+    const hudCanvas = document.createElement('canvas');
+    hudCanvas.width = 512; hudCanvas.height = 256;
+    const hudCtx = hudCanvas.getContext('2d');
+    const hudTex = new THREE.CanvasTexture(hudCanvas);
+    const vrHud = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.2), new THREE.MeshBasicMaterial({ map: hudTex, transparent: true }));
+    vrHud.position.set(0, 3.1, -2.5);
+    vrHud.visible = false;
+    scene.add(vrHud);
+    let hudNext = 0;
+    function updateVRHud(now) {
+      if (!vrHud.visible || now < hudNext) return;
+      hudNext = now + 120;
+      const c = hudCtx;
+      c.clearRect(0, 0, 512, 256);
+      c.fillStyle = 'rgba(9,12,26,0.8)'; c.fillRect(0, 0, 512, 256);
+      c.strokeStyle = '#38bdf8'; c.lineWidth = 4; c.strokeRect(2, 2, 508, 252);
+      c.textAlign = 'center'; c.fillStyle = '#e2e8f0'; c.font = 'bold 34px Orbitron, sans-serif';
+      c.fillText(`HIT ${state.hits}   MISS ${state.misses}`, 256, 70, 480);
+      c.fillText(`CR ${state.correctRejections}   FA ${state.falseAlarms}`, 256, 120, 480);
+      if (vrLastMsg && now - vrLastMsg.t < 1200) {
+        c.fillStyle = '#00e5ff'; c.font = 'bold 24px Orbitron, sans-serif';
+        c.fillText(vrLastMsg.title, 256, 185, 480);
+        c.fillStyle = '#94a3b8'; c.font = '20px monospace';
+        c.fillText(vrLastMsg.subtitle, 256, 225, 480);
+      }
+      hudTex.needsUpdate = true;
+    }
+
+    // 3D emblem on the front face of each block (replaces flat R / B / X symbols)
+    function makeEmblem(type, hex, w) {
+      const mat = new THREE.MeshStandardMaterial({ color: hex, emissive: hex, emissiveIntensity: 0.9, roughness: 0.25, metalness: 0.4 });
+      const g = new THREE.Group(), s = w * 0.3;
+      if (type === 'red') g.add(new THREE.Mesh(new THREE.OctahedronGeometry(s), mat));
+      else if (type === 'blue') g.add(new THREE.Mesh(new THREE.TorusGeometry(s * 0.8, s * 0.3, 12, 28), mat));
+      else [Math.PI / 4, -Math.PI / 4].forEach(a => {
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(s * 2.5, s * 0.5, s * 0.5), mat);
+        bar.rotation.z = a; g.add(bar);
+      });
+      g.position.z = w / 2 + s * 0.9;
+      return g;
+    }
+
+    /*************************************************************************
+     * 5. BLOCK TEXTURE GENERATOR & 3D INCOMING BLOCKS (RED, BLUE, GREEN)
+     *************************************************************************/
+    const blockTextures = {};
+    function createBlockFaceTexture(type) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+
+      // Dark cyber background
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(0, 0, 256, 256);
+
+      // Neon border
+      const colorMap = {
+        red: '#ff2a5f',
+        blue: '#00e5ff',
+        green: '#00ff66'
+      };
+      const mainColor = colorMap[type];
+
+      ctx.strokeStyle = mainColor;
+      ctx.lineWidth = 18;
+      ctx.strokeRect(14, 14, 228, 228);
+
+      // Inner glow corner brackets
+      ctx.fillStyle = mainColor;
+      ctx.font = 'bold 92px Orbitron, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      if (type === 'red') {
+        ctx.fillText('R', 128, 118);
+        ctx.font = 'bold 28px Orbitron, sans-serif';
+        ctx.fillText('RED SABER', 128, 195);
+      } else if (type === 'blue') {
+        ctx.fillText('B', 128, 118);
+        ctx.font = 'bold 28px Orbitron, sans-serif';
+        ctx.fillText('BLUE SABER', 128, 195);
+      } else {
+        ctx.fillText('✕', 128, 110);
+        ctx.font = 'bold 34px Orbitron, sans-serif';
+        ctx.fillText('SKIP', 128, 195);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      return texture;
+    }
+
+    blockTextures.red = createBlockFaceTexture('red');
+    blockTextures.blue = createBlockFaceTexture('blue');
+    blockTextures.green = createBlockFaceTexture('green');
+
+    const activeBlocks = [];
+    const activeParticles = [];
+
+    // Compute Index of Difficulty ID = log(d / w) according to chosen log base
+    function computeFittsID(dMeters, wMeters) {
+      const safeW = Math.max(wMeters, 0.05);
+      const safeD = Math.max(dMeters, safeW * 1.15);
+      const ratio = safeD / safeW;
+      let id = 0;
+
+      if (state.logBase === '2') {
+        id = Math.log2(ratio);
+      } else if (state.logBase === 'e') {
+        id = Math.log(ratio);
+      } else if (state.logBase === '10') {
+        id = Math.log10(ratio);
+      } else {
+        id = Math.log2(ratio + 1);
+      }
+      return { id, ratio, safeD, safeW };
+    }
+
+    // Dynamically solve for 'a' (Reaction Time) and 'b' (Bandwidth) using Exponentially Weighted Regression (focusing on last 15-20 actions)
+    function recomputeFittsAB() {
+      const allPairs = state.fittsPairs;
+      if (allPairs.length === 0) {
+        state.calcA = null;
+        state.calcB = null;
+        return;
+      }
+
+      // Focus primarily on the last 20 actions to reflect learning / skill adaptation
+      const pairs = allPairs.slice(-20);
+      const n = pairs.length;
+
+      if (n === 1) {
+        const p = pairs[0];
+        const idVal = Math.max(p.id, 0.25);
+        state.calcB = (p.dt * 0.42) / idVal;
+        state.calcA = p.dt - state.calcB * p.id;
+        return;
+      }
+
+      // Exponential weighting: alpha decay so that the most recent actions take the vast majority of weight
+      // alpha = 0.25 means weight decays back in time smoothly
+      const alpha = 0.28;
+      const weights = [];
+      let sumW = 0;
+      for (let i = 0; i < n; i++) {
+        // Most recent element (i = n-1) gets the highest weight
+        const w = Math.pow(1 - alpha, n - 1 - i);
+        weights.push(w);
+        sumW += w;
+      }
+      // Normalize weights
+      for (let i = 0; i < n; i++) {
+        weights[i] /= sumW;
+      }
+
+      // Weighted means
+      let sumWX = 0, sumWY = 0;
+      for (let i = 0; i < n; i++) {
+        sumWX += weights[i] * pairs[i].id;
+        sumWY += weights[i] * pairs[i].dt;
+      }
+      const meanX = sumWX;
+      const meanY = sumWY;
+
+      // Weighted Least Squares Slope (b) and Intercept (a)
+      let num = 0, den = 0;
+      for (let i = 0; i < n; i++) {
+        const dx = pairs[i].id - meanX;
+        const dy = pairs[i].dt - meanY;
+        num += weights[i] * dx * dy;
+        den += weights[i] * dx * dx;
+      }
+
+      if (Math.abs(den) > 1e-4) {
+        let b = num / den;
+        b = THREE.MathUtils.clamp(b, -400, 1000);
+        const a = meanY - b * meanX;
+        state.calcB = b;
+        state.calcA = Math.max(20, a); // Physiological floor for motor RT
+      } else {
+        state.calcB = (meanY * 0.4) / Math.max(meanX, 0.25);
+        state.calcA = meanY - state.calcB * meanX;
+      }
+    }
+
+    function spawnBlock(forcedType = null) {
+      // 1. Automatically & Randomly select block color: Red, Blue, or Green (Skip)
+      let type = forcedType;
+      if (!type) {
+        const totalWeight = state.probRed + state.probBlue + state.probGreen;
+        if (totalWeight <= 0) {
+          type = 'red';
+        } else {
+          const r = Math.random() * totalWeight;
+          if (r < state.probRed) type = 'red';
+          else if (r < state.probRed + state.probBlue) type = 'blue';
+          else type = 'green';
+        }
+      }
+
+      // 2. Automatically & Randomly generate (X, Y) coordinates and Speed (v)
+      const nowSec = performance.now() * 0.001;
+      let x = 0;
+      let y = 1.6;
+
+      if (state.autoMode === 'lissajous_jitter') {
+        // Continuous Lissajous wave + random jitter
+        const waveX = Math.sin(nowSec * 1.35) * (state.randXSpread * 0.75);
+        const waveY = ((Math.cos(nowSec * 2.1) + 1) * 0.5) * (state.randYMax - state.randYMin) + state.randYMin;
+        x = THREE.MathUtils.clamp(waveX + (Math.random() * 2 - 1) * 0.45, -state.randXSpread, state.randXSpread);
+        y = THREE.MathUtils.clamp(waveY + (Math.random() * 2 - 1) * 0.3, state.randYMin, state.randYMax);
+      } else {
+        // Pure uniform random (X, Y) across arena envelope for every block
+        x = (Math.random() * 2 - 1) * state.randXSpread;
+        y = state.randYMin + Math.random() * (state.randYMax - state.randYMin);
+      }
+
+      // Automatically generate random incoming velocity v within [speedMin, speedMax]
+      const minV = Math.min(state.speedMin, state.speedMax);
+      const maxV = Math.max(state.speedMin, state.speedMax);
+      const autoSpeed = minV + Math.random() * (maxV - minV);
+
+      state.spawnX = x;
+      state.spawnY = y;
+      state.lastAutoSpeed = autoSpeed;
+
+      // Move 3D Spawn Reticle to show the newly generated (X, Y) trajectory
+      spawnPreviewGroup.position.set(x, y, 0);
+      const colorHex = type === 'red' ? 0xff2a5f : type === 'blue' ? 0x00e5ff : 0x00ff66;
+      spawnRing.material.color.setHex(colorHex);
+      trajLine.material.color.setHex(colorHex);
+
+      // Update Live Auto-Spawn HUD Readouts
+      const etaSec = Math.abs(state.spawnZ - state.strikeZ) / autoSpeed;
+      document.getElementById('live-auto-xy').textContent = `X: ${x >= 0 ? '+' : ''}${x.toFixed(2)}m, Y: ${y.toFixed(2)}m`;
+      document.getElementById('live-auto-speed').textContent = `${autoSpeed.toFixed(1)} m/s`;
+      document.getElementById('live-auto-eta').textContent = `${etaSec.toFixed(2)} s`;
+      document.getElementById('xy-pad-readout').textContent = `X:${x.toFixed(1)}m Y:${y.toFixed(1)}m v:${autoSpeed.toFixed(0)}`;
+
+      // Block Width w (with optional auto-variation so d/w spans a wider range for regression)
+      const jitterFactor = state.autoVaryW ? (0.75 + Math.random() * 0.55) : 1.0;
+      const w = THREE.MathUtils.clamp(state.fittsW * jitterFactor, 0.20, 1.05);
+
+      // Estimate distance d from previous hit position (or saber tip if no hit yet)
+      const targetVec = new THREE.Vector2(x, y);
+      const refPos = state.lastHitPos
+        ? state.lastHitPos
+        : (type === 'red'
+          ? new THREE.Vector2(state.redSaberTip.x, state.redSaberTip.y)
+          : new THREE.Vector2(state.blueSaberTip.x, state.blueSaberTip.y));
+      const rawD = targetVec.distanceTo(refPos);
+      const fitts = computeFittsID(rawD, w);
+
+      const geometry = new THREE.BoxGeometry(w, w, w);
+      const material = new THREE.MeshStandardMaterial({
+        map: blockTextures[type],
+        emissive: colorHex,
+        emissiveIntensity: 0.35,
+        roughness: 0.2,
+        metalness: 0.5
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(x, y, state.spawnZ);
+
+      // Add wireframe neon edge
+      const edgeGeo = new THREE.EdgesGeometry(geometry);
+      const edgeMat = new THREE.LineBasicMaterial({ color: colorHex });
+      const wireframe = new THREE.LineSegments(edgeGeo, edgeMat);
+      mesh.add(wireframe);
+      const emblem = makeEmblem(type, colorHex, w);
+      mesh.add(emblem);
+
+      scene.add(mesh);
+
+      // Optional mid-flight lateral & speed modulation parameters
+      const shiftFreq = 1.4 + Math.random() * 1.8;
+      const shiftPhase = Math.random() * Math.PI * 2;
+      const shiftAmpX = state.autoMode === 'inflight_shift' ? (0.35 + Math.random() * 0.55) : 0;
+      const shiftAmpY = state.autoMode === 'inflight_shift' ? (0.25 + Math.random() * 0.40) : 0;
+
+      activeBlocks.push({
+        mesh,
+        emblem,
+        type, // 'red', 'blue', 'green'
+        baseX: x,
+        baseY: y,
+        x,
+        y,
+        w: fitts.safeW,
+        d: fitts.safeD,
+        baseSpeed: autoSpeed,
+        speed: autoSpeed,
+        shiftFreq,
+        shiftPhase,
+        shiftAmpX,
+        shiftAmpY,
+        fittsID: fitts.id,
+        spawnTimestamp: performance.now(),
+        enterZoneTimestamp: null,
+        resolved: false
+      });
+    }
+
+    function spawnSingleBlock(colorType) {
+      spawnBlock(colorType);
+    }
+
+    /*************************************************************************
+     * 6. PARTICLE EXPLOSION, FLOATING FEEDBACK & INVERSE NORMAL (SDT)
+     *************************************************************************/
+    function createSliceExplosion(position, hexColor) {
+      const particleGeo = new THREE.BoxGeometry(0.07, 0.07, 0.07);
+      const particleMat = new THREE.MeshBasicMaterial({ color: hexColor });
+
+      for (let i = 0; i < 16; i++) {
+        const pMesh = new THREE.Mesh(particleGeo, particleMat);
+        pMesh.position.copy(position);
+        scene.add(pMesh);
+
+        const vel = new THREE.Vector3(
+          (Math.random() - 0.5) * 6.5,
+          (Math.random() - 0.2) * 6.5,
+          (Math.random() - 0.5) * 6.5
+        );
+        activeParticles.push({ mesh: pMesh, vel, life: 1.0 });
+      }
+    }
+
+    function showFloatingFeedback(worldPos, title, subtitle, styleClass) {
+      const feedbackLayer = document.getElementById('feedback-layer');
+      vrLastMsg = { title, subtitle, t: performance.now() };
+      if (!feedbackLayer) return;
+
+      const projected = worldPos.clone().project(camera);
+      const screenX = (projected.x * 0.5 + 0.5) * window.innerWidth;
+      const screenY = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+
+      const el = document.createElement('div');
+      el.className = `feedback-pop hud-glass px-3 py-1.5 rounded-lg border text-center ${styleClass}`;
+      el.style.left = `${THREE.MathUtils.clamp(screenX, 120, window.innerWidth - 120)}px`;
+      el.style.top = `${THREE.MathUtils.clamp(screenY, 80, window.innerHeight - 80)}px`;
+      el.innerHTML = `
+        <div class="font-cyber text-xs font-bold tracking-wider">${title}</div>
+        <div class="font-mono-code text-[10px] opacity-90">${subtitle}</div>
+      `;
+
+      feedbackLayer.appendChild(el);
+      setTimeout(() => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, 950);
+    }
+
+    // Acklam's Rational Approximation for Inverse Standard Normal CDF Z(p) (used for d' and c)
+    function normSinV(p) {
+      const a1 = -39.6968302866538, a2 = 220.946098424521, a3 = -275.928510446969;
+      const a4 = 138.357751867269, a5 = -30.6647980661472, a6 = 2.50662827745924;
+      const b1 = -54.4760987982241, b2 = 161.585836858041, b3 = -155.698979859887;
+      const b4 = 66.8013118877197, b5 = -13.2806815528857;
+      const c1 = -0.00778489400243029, c2 = -0.322396458041136, c3 = -2.40075827716184;
+      const c4 = -2.54973253934373, c5 = 4.37466414146497, c6 = 2.93816398269878;
+      const d1 = 0.00778469570904146, d2 = 0.32246712907004, d3 = 2.445134137143;
+      const d4 = 3.75440866190742;
+      const pLow = 0.02425, pHigh = 1 - pLow;
+      let q, r;
+      if (p < pLow) {
+        q = Math.sqrt(-2 * Math.log(p));
+        return (((((c1 * q + c2) * q + c3) * q + c4) * q + c5) * q + c6) /
+               ((((d1 * q + d2) * q + d3) * q + d4) * q + 1);
+      } else if (p <= pHigh) {
+        q = p - 0.5;
+        r = q * q;
+        return (((((a1 * r + a2) * r + a3) * r + a4) * r + a5) * r + a6) * q /
+               (((((b1 * r + b2) * r + b3) * r + b4) * r + b5) * r + 1);
+      } else {
+        q = Math.sqrt(-2 * Math.log(1 - p));
+        return -(((((c1 * q + c2) * q + c3) * q + c4) * q + c5) * q + c6) /
+                ((((d1 * q + d2) * q + d3) * q + d4) * q + 1);
+      }
+    }
+
+    function recordTrialOutcome(block, outcome, hitTimestamp = null, detailNote = '') {
+      state.trialCounter++;
+      const nowHit = hitTimestamp || performance.now();
+      const currentHitPos = new THREE.Vector2(block.mesh.position.x, block.mesh.position.y);
+      let interHitDT = null;
+
+      // Compute time gap Δt and spatial distance d between ANY consecutive player action (Hits, False Alarms, Wrong Saber)
+      if (state.lastHitTimestamp !== null && state.lastHitPos !== null) {
+        interHitDT = Math.max(40, nowHit - state.lastHitTimestamp);
+        const moveDist = currentHitPos.distanceTo(state.lastHitPos);
+        const fitts = computeFittsID(moveDist, block.w);
+
+        block.d = fitts.safeD;
+        block.w = fitts.safeW;
+        block.fittsID = fitts.id;
+
+        state.lastDeltaT = interHitDT;
+        state.lastD = fitts.safeD;
+        state.lastRatio = fitts.ratio;
+        state.lastID = fitts.id;
+
+        state.fittsPairs.push({
+          dt: interHitDT,
+          d: fitts.safeD,
+          w: fitts.safeW,
+          ratio: fitts.ratio,
+          id: fitts.id,
+          timestamp: nowHit
+        });
+
+        recomputeFittsAB();
+      }
+
+      state.lastHitTimestamp = nowHit;
+      state.lastHitPos = currentHitPos;
+
+      if (outcome === 'HIT') {
+        state.hits++;
+      } else if (outcome === 'MISS') {
+        state.misses++;
+      } else if (outcome === 'CORRECT REJECTION') {
+        state.correctRejections++;
+      } else if (outcome === 'FALSE ALARM') {
+        state.falseAlarms++;
+      }
+
+      const logEntry = {
+        trial: state.trialCounter,
+        type: block.type.toUpperCase(),
+        x: block.x.toFixed(2),
+        y: block.y.toFixed(2),
+        speed: block.speed.toFixed(1),
+        d: block.d.toFixed(2),
+        w: block.w.toFixed(2),
+        id: block.fittsID.toFixed(2),
+        dt: interHitDT !== null ? interHitDT.toFixed(0) : '—',
+        calcA: state.calcA !== null ? state.calcA.toFixed(1) : '—',
+        calcB: state.calcB !== null ? state.calcB.toFixed(1) : '—',
+        outcome,
+        detailNote
+      };
+      state.trialsLog.unshift(logEntry);
+
+      updateSDTDashboard();
+      updateFittsCalculatorUI();
+      renderTelemetryTable();
+    }
+
+    function updateSDTDashboard() {
+      const goTotal = state.hits + state.misses;
+      const noGoTotal = state.correctRejections + state.falseAlarms;
+      const totalTrials = goTotal + noGoTotal;
+
+      const hitRate = goTotal > 0 ? state.hits / goTotal : 0;
+      const missRate = goTotal > 0 ? state.misses / goTotal : 0;
+      const crRate = noGoTotal > 0 ? state.correctRejections / noGoTotal : 0;
+      const faRate = noGoTotal > 0 ? state.falseAlarms / noGoTotal : 0;
+
+      // Update DOM Counts & Rates
+      document.getElementById('sdt-total-trials').textContent = `Trials: ${totalTrials}`;
+      document.getElementById('count-hits').textContent = state.hits;
+      document.getElementById('count-misses').textContent = state.misses;
+      document.getElementById('count-cr').textContent = state.correctRejections;
+      document.getElementById('count-fa').textContent = state.falseAlarms;
+
+      document.getElementById('rate-hit-pct').textContent = `${(hitRate * 100).toFixed(1)}%`;
+      document.getElementById('rate-hit-dec').textContent = `P = ${hitRate.toFixed(2)}`;
+      document.getElementById('bar-hit').style.width = `${hitRate * 100}%`;
+
+      document.getElementById('rate-miss-pct').textContent = `${(missRate * 100).toFixed(1)}%`;
+      document.getElementById('rate-miss-dec').textContent = `P = ${missRate.toFixed(2)}`;
+      document.getElementById('bar-miss').style.width = `${missRate * 100}%`;
+
+      document.getElementById('rate-cr-pct').textContent = `${(crRate * 100).toFixed(1)}%`;
+      document.getElementById('rate-cr-dec').textContent = `P = ${crRate.toFixed(2)}`;
+      document.getElementById('bar-cr').style.width = `${crRate * 100}%`;
+
+      document.getElementById('rate-fa-pct').textContent = `${(faRate * 100).toFixed(1)}%`;
+      document.getElementById('rate-fa-dec').textContent = `P = ${faRate.toFixed(2)}`;
+      document.getElementById('bar-fa').style.width = `${faRate * 100}%`;
+
+      // Update Fitts's Law Reaction Time (a) & Bandwidth (b) cards alongside SDT rates
+      if (state.calcA !== null && state.calcB !== null) {
+        document.getElementById('card-fitts-a').textContent = `${state.calcA.toFixed(1)} ms`;
+        document.getElementById('card-fitts-a-sec').textContent = `${(state.calcA / 1000).toFixed(2)} s`;
+        document.getElementById('card-fitts-b').textContent = `${state.calcB.toFixed(1)} ms/bit`;
+        const ip = Math.abs(state.calcB) > 1 ? (1000 / Math.abs(state.calcB)).toFixed(2) : '—';
+        document.getElementById('card-fitts-ip').textContent = `IP: ${ip} b/s`;
+      } else {
+        document.getElementById('card-fitts-a').textContent = `— ms`;
+        document.getElementById('card-fitts-a-sec').textContent = `Need 2 hits`;
+        document.getElementById('card-fitts-b').textContent = `— ms/bit`;
+        document.getElementById('card-fitts-ip').textContent = `IP: — b/s`;
+      }
+
+      // Log-linear (Hautus 1995) correction for d' & c so 0% or 100% rates never produce Infinity
+      const adjH = (state.hits + 0.5) / (goTotal + 1);
+      const adjFA = (state.falseAlarms + 0.5) / (noGoTotal + 1);
+      const zH = normSinV(Math.min(Math.max(adjH, 0.001), 0.999));
+      const zFA = normSinV(Math.min(Math.max(adjFA, 0.001), 0.999));
+      const dPrime = zH - zFA;
+      const criterion = -0.5 * (zH + zFA);
+      const accuracy = totalTrials > 0 ? ((state.hits + state.correctRejections) / totalTrials) * 100 : 0;
+
+      document.getElementById('val-dprime').textContent = dPrime.toFixed(2);
+      document.getElementById('val-criterion').textContent = criterion.toFixed(2);
+      document.getElementById('val-overall-acc').textContent = `${accuracy.toFixed(1)}%`;
+    }
+
+    function renderTelemetryTable() {
+      const tbody = document.getElementById('telemetry-tbody');
+      const slice = state.trialsLog.slice(0, 40);
+      if (slice.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-slate-500">Hit 2+ Red/Blue blocks consecutively to solve a (Reaction Time) & b (Bandwidth)...</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = slice.map(row => {
+        const blkBadge = row.type === 'RED'
+          ? '<span class="px-1 rounded bg-rose-500/25 text-rose-300 border border-rose-500/40">R</span>'
+          : row.type === 'BLUE'
+          ? '<span class="px-1 rounded bg-cyan-500/25 text-cyan-300 border border-cyan-500/40">B</span>'
+          : '<span class="px-1 rounded bg-emerald-500/25 text-emerald-300 border border-emerald-500/40">G</span>';
+
+        let outClass = 'text-emerald-400';
+        if (row.outcome === 'MISS') outClass = 'text-amber-400';
+        else if (row.outcome === 'CORRECT REJECTION') outClass = 'text-cyan-400';
+        else if (row.outcome === 'FALSE ALARM') outClass = 'text-rose-400 font-bold';
+
+        const ratioStr = (parseFloat(row.d) / parseFloat(row.w)).toFixed(1);
+
+        return `
+          <tr class="hover:bg-slate-900/90 transition">
+            <td class="py-1 px-1 text-slate-400">${row.trial}</td>
+            <td class="py-1 px-1">${blkBadge}</td>
+            <td class="py-1 px-1 text-amber-300">${row.speed}</td>
+            <td class="py-1 px-1">${ratioStr}</td>
+            <td class="py-1 px-1 text-amber-200">${row.dt}</td>
+            <td class="py-1 px-1 text-fuchsia-300">${row.calcA}</td>
+            <td class="py-1 px-1 text-indigo-300">${row.calcB}</td>
+            <td class="py-1 px-1 ${outClass}">${row.outcome}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    /*************************************************************************
+     * 8. UI CONTROLS: AUTO-RANDOM ENVELOPE, LIVE RADAR & FITTS REGRESSION
+     *************************************************************************/
+    const radarCanvas = document.getElementById('auto-radar-canvas');
+    const radarCtx = radarCanvas ? radarCanvas.getContext('2d') : null;
+    const regCanvas = document.getElementById('fitts-regression-canvas');
+    const regCtx = regCanvas ? regCanvas.getContext('2d') : null;
+
+    function drawFittsRegressionPlot() {
+      if (!regCtx) return;
+      const w = regCanvas.width;
+      const h = regCanvas.height;
+      regCtx.clearRect(0, 0, w, h);
+
+      // Subtle axes grid
+      regCtx.strokeStyle = 'rgba(148, 163, 184, 0.14)';
+      regCtx.lineWidth = 1;
+      for (let gx = 32; gx < w; gx += 48) {
+        regCtx.beginPath();
+        regCtx.moveTo(gx, 0);
+        regCtx.lineTo(gx, h);
+        regCtx.stroke();
+      }
+      for (let gy = 16; gy < h; gy += 24) {
+        regCtx.beginPath();
+        regCtx.moveTo(0, gy);
+        regCtx.lineTo(w, gy);
+        regCtx.stroke();
+      }
+
+      const allPairs = state.fittsPairs;
+      if (allPairs.length === 0) return;
+
+      // Show recent 20 active pairs on regression plot
+      const pairs = allPairs.slice(-20);
+      const maxID = Math.max(3.5, ...pairs.map(p => p.id)) * 1.1;
+      const maxDT = Math.max(1200, ...pairs.map(p => p.dt)) * 1.1;
+      const minDT = 0;
+
+      // Draw exponentially-weighted fitted regression line Δt = a + b * ID
+      if (state.calcA !== null && state.calcB !== null) {
+        const x0 = 0;
+        const y0 = state.calcA;
+        const x1 = maxID;
+        const y1 = state.calcA + state.calcB * x1;
+
+        const px0 = 12 + (x0 / maxID) * (w - 24);
+        const py0 = h - 10 - ((y0 - minDT) / (maxDT - minDT)) * (h - 22);
+        const px1 = 12 + (x1 / maxID) * (w - 24);
+        const py1 = h - 10 - ((y1 - minDT) / (maxDT - minDT)) * (h - 22);
+
+        regCtx.strokeStyle = '#e879f9';
+        regCtx.lineWidth = 2;
+        regCtx.beginPath();
+        regCtx.moveTo(px0, THREE.MathUtils.clamp(py0, 4, h - 4));
+        regCtx.lineTo(px1, THREE.MathUtils.clamp(py1, 4, h - 4));
+        regCtx.stroke();
+      }
+
+      // Plot each action point with opacity scaled by recency (more recent = brighter)
+      pairs.forEach((p, idx, arr) => {
+        const px = 12 + (p.id / maxID) * (w - 24);
+        const py = h - 10 - ((p.dt - minDT) / (maxDT - minDT)) * (h - 22);
+        const isLatest = idx === arr.length - 1;
+        const recencyAlpha = 0.35 + (idx / arr.length) * 0.65;
+        regCtx.fillStyle = isLatest ? '#38bdf8' : `rgba(232, 121, 249, ${recencyAlpha})`;
+        regCtx.beginPath();
+        regCtx.arc(px, THREE.MathUtils.clamp(py, 5, h - 5), isLatest ? 4.5 : 2.5, 0, Math.PI * 2);
+        regCtx.fill();
+      });
+    }
+
+    function drawAutoRadar() {
+      if (!radarCtx) return;
+      const w = radarCanvas.width;
+      const h = radarCanvas.height;
+      radarCtx.clearRect(0, 0, w, h);
+
+      // Subtle grid
+      radarCtx.strokeStyle = 'rgba(56, 189, 248, 0.16)';
+      radarCtx.lineWidth = 1;
+      for (let gx = 0; gx <= w; gx += w / 4) {
+        radarCtx.beginPath();
+        radarCtx.moveTo(gx, 0);
+        radarCtx.lineTo(gx, h);
+        radarCtx.stroke();
+      }
+      for (let gy = 0; gy <= h; gy += h / 4) {
+        radarCtx.beginPath();
+        radarCtx.moveTo(0, gy);
+        radarCtx.lineTo(w, gy);
+        radarCtx.stroke();
+      }
+
+      // Draw active auto-random bounding box
+      const leftX = ((-state.randXSpread + 2.6) / 5.2) * w;
+      const rightX = ((state.randXSpread + 2.6) / 5.2) * w;
+      const topY = (1 - (state.randYMax - 0.6) / 2.2) * h;
+      const botY = (1 - (state.randYMin - 0.6) / 2.2) * h;
+
+      radarCtx.strokeStyle = 'rgba(217, 70, 239, 0.45)';
+      radarCtx.setLineDash([3, 3]);
+      radarCtx.strokeRect(leftX, topY, rightX - leftX, botY - topY);
+      radarCtx.setLineDash([]);
+
+      // Plot all active incoming blocks with size proportional to Z-proximity
+      activeBlocks.forEach(blk => {
+        const px = ((blk.x + 2.6) / 5.2) * w;
+        const py = (1 - (blk.y - 0.6) / 2.2) * h;
+        const progress = THREE.MathUtils.clamp((blk.mesh.position.z - state.spawnZ) / (state.strikeZ - state.spawnZ), 0, 1.2);
+        const radius = 2.2 + progress * 4.2;
+
+        radarCtx.fillStyle = blk.type === 'red' ? '#ff2a5f' : blk.type === 'blue' ? '#00e5ff' : '#00ff66';
+        radarCtx.beginPath();
+        radarCtx.arc(px, py, radius, 0, Math.PI * 2);
+        radarCtx.fill();
+      });
+
+      // Plot Red & Blue Saber positions on radar
+      const redPx = ((state.redSaberTip.x + 2.6) / 5.2) * w;
+      const redPy = (1 - (state.redSaberTip.y - 0.6) / 2.2) * h;
+      radarCtx.strokeStyle = '#ff2a5f';
+      radarCtx.lineWidth = 1.5;
+      radarCtx.strokeRect(redPx - 3, redPy - 3, 6, 6);
+
+      const bluePx = ((state.blueSaberTip.x + 2.6) / 5.2) * w;
+      const bluePy = (1 - (state.blueSaberTip.y - 0.6) / 2.2) * h;
+      radarCtx.strokeStyle = '#00e5ff';
+      radarCtx.strokeRect(bluePx - 3, bluePy - 3, 6, 6);
+    }
+
+    function updateSpawnParams() {
+      const modeEl = document.getElementById('select-auto-mode');
+      if (modeEl) state.autoMode = modeEl.value;
+
+      state.randXSpread = parseFloat(document.getElementById('slider-rand-x').value);
+      state.randYMin = parseFloat(document.getElementById('slider-rand-ymin').value);
+      state.randYMax = Math.max(state.randYMin + 0.2, parseFloat(document.getElementById('slider-rand-ymax').value));
+
+      const sMin = parseFloat(document.getElementById('slider-speed-min').value);
+      const sMax = parseFloat(document.getElementById('slider-speed-max').value);
+      state.speedMin = Math.min(sMin, sMax);
+      state.speedMax = Math.max(sMin, sMax);
+
+      state.spawnInterval = parseInt(document.getElementById('slider-interval').value, 10);
+
+      document.getElementById('val-rand-x').textContent = `±${state.randXSpread.toFixed(2)} m`;
+      document.getElementById('val-rand-y').textContent = `${state.randYMin.toFixed(1)} - ${state.randYMax.toFixed(1)} m`;
+      document.getElementById('val-speed').textContent = `${state.speedMin.toFixed(0)} - ${state.speedMax.toFixed(0)} m/s`;
+      document.getElementById('val-interval').textContent = `${state.spawnInterval} ms`;
+
+      updateFittsCalculator();
+    }
+
+    function updateProbabilities() {
+      state.probRed = parseInt(document.getElementById('slider-prob-r').value, 10);
+      state.probBlue = parseInt(document.getElementById('slider-prob-b').value, 10);
+      state.probGreen = parseInt(document.getElementById('slider-prob-g').value, 10);
+      const sum = Math.max(1, state.probRed + state.probBlue + state.probGreen);
+      const pr = Math.round((state.probRed / sum) * 100);
+      const pb = Math.round((state.probBlue / sum) * 100);
+      const pg = Math.max(0, 100 - pr - pb);
+
+      document.getElementById('lbl-prob-r').textContent = `${pr}%`;
+      document.getElementById('lbl-prob-b').textContent = `${pb}%`;
+      document.getElementById('lbl-prob-g').textContent = `${pg}%`;
+      document.getElementById('val-prob-summary').textContent = `${pr}% R / ${pb}% B / ${pg}% G`;
+    }
+
+    function updateFittsCalculator() {
+      state.fittsW = parseFloat(document.getElementById('slider-fitts-w').value);
+      state.autoVaryW = document.getElementById('chk-auto-w').checked;
+      state.logBase = document.getElementById('select-log-base').value;
+      state.solverMode = document.getElementById('select-solver-mode').value;
+
+      // Recompute IDs for existing consecutive-hit pairs if log base changed
+      state.fittsPairs.forEach(p => {
+        const res = computeFittsID(p.d, p.w);
+        p.id = res.id;
+        p.ratio = res.ratio;
+      });
+      if (state.fittsPairs.length > 0) {
+        const latest = state.fittsPairs[state.fittsPairs.length - 1];
+        state.lastID = latest.id;
+        state.lastRatio = latest.ratio;
+      }
+
+      recomputeFittsAB();
+      updateSDTDashboard();
+      updateFittsCalculatorUI();
+    }
+
+    function updateFittsCalculatorUI() {
+      document.getElementById('val-fitts-w').textContent = `${state.fittsW.toFixed(2)} m`;
+      document.getElementById('fitts-pairs-count').textContent = `Pairs: ${state.fittsPairs.length}`;
+
+      const logLabel = state.logBase === '2' ? 'log₂(d/w)'
+                     : state.logBase === 'e' ? 'ln(d/w)'
+                     : state.logBase === '10' ? 'log₁₀(d/w)'
+                     : 'log₂(d/w + 1)';
+
+      document.getElementById('formula-symbolic').textContent = `Δt = a + b · ${logLabel}`;
+
+      if (state.calcA !== null && state.calcB !== null) {
+        const signB = state.calcB >= 0 ? '+' : '-';
+        document.getElementById('formula-numeric').textContent =
+          `Δt = ${state.calcA.toFixed(1)} ${signB} ${Math.abs(state.calcB).toFixed(1)} · ${logLabel}`;
+      } else {
+        document.getElementById('formula-numeric').textContent =
+          `Waiting for 2 consecutive hits to solve a & b...`;
+      }
+
+      document.getElementById('val-fitts-id').textContent = state.lastID !== null ? state.lastID.toFixed(2) : '—';
+      document.getElementById('val-last-dt').textContent = state.lastDeltaT !== null ? `${state.lastDeltaT.toFixed(0)} ms` : '— ms';
+      document.getElementById('val-fitts-d').textContent = state.lastD !== null ? `${state.lastD.toFixed(2)} m` : '— m';
+      document.getElementById('val-last-ratio').textContent = state.lastRatio !== null ? state.lastRatio.toFixed(2) : '—';
+
+      drawFittsRegressionPlot();
+    }
+
+    /*************************************************************************
+     * 9. SABER CONTROL MODES, MOUSE/KEYBOARD & WEBXR HANDLERS
+     *************************************************************************/
+    function toggleControlMode() {
+      state.controlMode = state.controlMode === 'dual' ? 'cursor' : 'dual';
+      const label = document.getElementById('label-control-mode');
+      label.textContent = state.controlMode === 'dual'
+        ? 'Mode: Dual-Saber Rig'
+        : 'Mode: Cursor Click-Select';
+    }
+
+    const raycaster = new THREE.Raycaster();
+    const mouseNDC = new THREE.Vector2(0, 0);
+    const strikePlaneMath = new THREE.Plane(new THREE.Vector3(0, 0, 1), -state.strikeZ);
+
+    function updatePointerPosition(clientX, clientY) {
+      mouseNDC.x = (clientX / window.innerWidth) * 2 - 1;
+      mouseNDC.y = -(clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouseNDC, camera);
+      const intersect = new THREE.Vector3();
+      raycaster.ray.intersectPlane(strikePlaneMath, intersect);
+      if (intersect) {
+        state.pointerWorld.x = Math.min(Math.max(intersect.x, -3.2), 3.2);
+        state.pointerWorld.y = Math.min(Math.max(intersect.y, 0.35), 3.1);
+        state.pointerWorld.z = state.strikeZ;
+      }
+    }
+
+    container.addEventListener('mousemove', (e) => {
+      updatePointerPosition(e.clientX, e.clientY);
+    });
+
+    container.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 0) {
+        updatePointerPosition(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    function triggerSaberSlash(which) {
+      playSound('swing');
+      if (which === 'red') {
+        state.redSlashTimer = 0.18;
+      } else if (which === 'blue') {
+        state.blueSlashTimer = 0.18;
+      }
+    }
+
+    container.addEventListener('mousedown', (e) => {
+      ensureAudio();
+      if (e.button === 0) {
+        triggerSaberSlash('red');
+      } else if (e.button === 2) {
+        triggerSaberSlash('blue');
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'q' || e.key === 'Q' || e.key === 'a' || e.key === 'A' || e.key === '1') {
+        triggerSaberSlash('red');
+      } else if (e.key === 'e' || e.key === 'E' || e.key === 'd' || e.key === 'D' || e.key === '2') {
+        triggerSaberSlash('blue');
+      } else if (e.code === 'Space') {
+        toggleStream();
+      }
+    });
+
+    // Stream Play/Pause Button
+    function toggleStream() {
+      state.streamActive = !state.streamActive;
+      const btn = document.getElementById('btn-toggle-stream');
+      const icon = document.getElementById('icon-stream');
+      const lbl = document.getElementById('label-stream');
+
+      if (state.streamActive) {
+        btn.className = 'px-3 py-1.5 rounded-lg font-cyber text-xs font-bold tracking-wide bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25 transition flex items-center gap-1.5';
+        icon.className = 'fa-solid fa-pause';
+        lbl.textContent = 'PAUSE STREAM';
+      } else {
+        btn.className = 'px-3 py-1.5 rounded-lg font-cyber text-xs font-bold tracking-wide bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-lg shadow-amber-400/25 transition flex items-center gap-1.5';
+        icon.className = 'fa-solid fa-play';
+        lbl.textContent = 'RESUME STREAM';
+      }
+    }
+    document.getElementById('btn-toggle-stream').addEventListener('click', toggleStream);
+
+    // WebXR Session Handler
+    let currentXRSession = null;
+    async function toggleVRSession() {
+      ensureAudio();
+      if (!navigator.xr) {
+        showFloatingFeedback(
+          new THREE.Vector3(0, 1.7, 0),
+          'WEBXR INFO',
+          'WebXR headset not detected — Desktop 3D Mode Active',
+          'neon-border-blue text-cyan-300'
+        );
+        return;
+      }
+      try {
+        if (!currentXRSession) {
+          const supported = await navigator.xr.isSessionSupported('immersive-vr');
+          if (!supported) {
+            showFloatingFeedback(
+              new THREE.Vector3(0, 1.7, 0),
+              'VR HEADSET NOT FOUND',
+              'Playing in Interactive 3D Desktop Mode',
+              'neon-border-blue text-cyan-300'
+            );
+            return;
+          }
+          const session = await navigator.xr.requestSession('immersive-vr', {
+            optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+          });
+          renderer.xr.setSession(session);
+          currentXRSession = session;
+          document.getElementById('label-vr').textContent = 'EXIT VR';
+          session.addEventListener('end', () => {
+            currentXRSession = null;
+            document.getElementById('label-vr').textContent = 'ENTER VR';
+          });
+        } else {
+          await currentXRSession.end();
+        }
+      } catch (err) {
+        showFloatingFeedback(
+          new THREE.Vector3(0, 1.7, 0),
+          'VR SESSION NOTICE',
+          String((err && err.message) || err).slice(0, 90),
+          'neon-border-blue text-cyan-300'
+        );
+      }
+    }
+
+    // Export CSV & Reset
+    function exportTelemetryCSV() {
+      if (state.trialsLog.length === 0) {
+        showFloatingFeedback(new THREE.Vector3(0, 1.6, 0), 'NO DATA YET', 'Play a few blocks first!', 'neon-border-blue text-cyan-300');
+        return;
+      }
+      const headers = ['Trial', 'BlockColor', 'X_m', 'Y_m', 'Speed_ms', 'Distance_d_m', 'Width_w_m', 'Fitts_ID', 'InterHit_DeltaT_ms', 'Calculated_a_ReactionTime_ms', 'Calculated_b_Bandwidth_ms_per_bit', 'SDT_Outcome'];
+      const rows = state.trialsLog.slice().reverse().map(r =>
+        [r.trial, r.type, r.x, r.y, r.speed, r.d, r.w, r.id, r.dt, r.calcA, r.calcB, r.outcome].join(',')
+      );
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `cybersaber_sdt_fitts_trials_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+
+    function resetExperiment() {
+      // Clear active blocks
+      activeBlocks.forEach(b => scene.remove(b.mesh));
+      activeBlocks.length = 0;
+
+      state.hits = 0;
+      state.misses = 0;
+      state.correctRejections = 0;
+      state.falseAlarms = 0;
+      state.trialCounter = 0;
+      state.empiricalRTs = [];
+      state.trialsLog = [];
+      state.lastHitTimestamp = null;
+      state.lastHitPos = null;
+      state.fittsPairs = [];
+      state.calcA = null;
+      state.calcB = null;
+      state.lastDeltaT = null;
+      state.lastD = null;
+      state.lastRatio = null;
+      state.lastID = null;
+
+      updateSDTDashboard();
+      updateFittsCalculatorUI();
+      renderTelemetryTable();
+      showFloatingFeedback(new THREE.Vector3(0, 1.6, 0), 'METRICS RESET', 'Ready for new experiment run', 'neon-border-blue text-cyan-300');
+    }
+
+    let panelsVisible = true;
+    function toggleHUDPanels() {
+      panelsVisible = !panelsVisible;
+      document.getElementById('panel-left').style.transform = panelsVisible ? 'translateX(0)' : 'translateX(-110%)';
+      document.getElementById('panel-right').style.transform = panelsVisible ? 'translateX(0)' : 'translateX(110%)';
+    }
+
+    /*************************************************************************
+     * 10. MAIN ANIMATION & COLLISION LOOP (THREE.JS + SDT + FITTS RT)
+     *************************************************************************/
+    let lastFrameTime = performance.now();
+    let lastSpawnTime = performance.now();
+    let nextAutoInterval = state.spawnInterval;
+
+    function updateSabers(dt) {
+      if (state.redSlashTimer > 0) state.redSlashTimer = Math.max(0, state.redSlashTimer - dt);
+      if (state.blueSlashTimer > 0) state.blueSlashTimer = Math.max(0, state.blueSlashTimer - dt);
+
+      // VR: sabers are children of the controllers (full free 6-DoF), nothing to drive here
+      if (renderer.xr.isPresenting) return;
+
+      // Desktop: blade orientation is no longer fixed - it sways with pointer motion
+      const px = state.pointerWorld.x, py = state.pointerWorld.y;
+      const sw = state.sway || (state.sway = { x: 0, y: 0, lx: px, ly: py });
+      const kk = Math.min(1, dt * 10), sdt = Math.max(dt, 1e-3);
+      sw.x += ((px - sw.lx) / sdt - sw.x) * kk;
+      sw.y += ((py - sw.ly) / sdt - sw.y) * kk;
+      sw.lx = px; sw.ly = py;
+      const tiltZ = THREE.MathUtils.clamp(-sw.x * 0.12, -0.9, 0.9);
+      const tiltX = THREE.MathUtils.clamp(sw.y * 0.08, -0.7, 0.7);
+
+      if (state.controlMode === 'dual') {
+        // Dual-Saber Rig: Red saber on left of pointer, Blue saber on right of pointer
+        // Slashing swings the chosen saber directly across the center pointer
+        const redOffset = state.redSlashTimer > 0 ? 0.0 : -0.46;
+        const blueOffset = state.blueSlashTimer > 0 ? 0.0 : 0.46;
+
+        state.redSaberTip.set(state.pointerWorld.x + redOffset, state.pointerWorld.y, state.strikeZ);
+        state.blueSaberTip.set(state.pointerWorld.x + blueOffset, state.pointerWorld.y, state.strikeZ);
+
+        redSaber.group.position.set(state.redSaberTip.x - 0.15, state.redSaberTip.y - 0.65, state.strikeZ + 0.15);
+        blueSaber.group.position.set(state.blueSaberTip.x + 0.15, state.blueSaberTip.y - 0.65, state.strikeZ + 0.15);
+
+        redSaber.group.rotation.z = (state.redSlashTimer > 0 ? -0.65 : -0.18) + tiltZ;
+        redSaber.group.rotation.x = (state.redSlashTimer > 0 ? -0.55 : -0.22) - tiltX;
+
+        blueSaber.group.rotation.z = (state.blueSlashTimer > 0 ? 0.65 : 0.18) + tiltZ;
+        blueSaber.group.rotation.x = (state.blueSlashTimer > 0 ? -0.55 : -0.22) - tiltX;
+      } else {
+        // Cursor Mode: Both sabers docked slightly lower, and Left-Click/Q swings Red to cursor, Right-Click/E swings Blue to cursor
+        state.redSaberTip.set(state.pointerWorld.x, state.pointerWorld.y, state.strikeZ);
+        state.blueSaberTip.set(state.pointerWorld.x, state.pointerWorld.y, state.strikeZ);
+
+        redSaber.group.position.set(state.pointerWorld.x - 0.22, state.pointerWorld.y - 0.65, state.strikeZ + 0.15);
+        blueSaber.group.position.set(state.pointerWorld.x + 0.22, state.pointerWorld.y - 0.65, state.strikeZ + 0.15);
+
+        redSaber.group.rotation.z = state.redSlashTimer > 0 ? -0.55 : -0.28;
+        blueSaber.group.rotation.z = state.blueSlashTimer > 0 ? 0.55 : 0.28;
+      }
+    }
+
+    function checkSaberBlockCollisions(now) {
+      const wrongSaberAsFA = document.getElementById('chk-wrong-saber-fa').checked;
+
+      for (let i = activeBlocks.length - 1; i >= 0; i--) {
+        const blk = activeBlocks[i];
+        if (blk.resolved) continue;
+
+        // Record timestamp when block enters actionable reaction zone (10m ahead of player)
+        if (blk.enterZoneTimestamp === null && blk.mesh.position.z >= -10.0) {
+          blk.enterZoneTimestamp = now;
+        }
+
+        // Check if block is within the strike Z window [-0.85, +0.75]
+        const xr = renderer.xr.isPresenting;
+        if (xr || (blk.mesh.position.z >= -0.85 && blk.mesh.position.z <= 0.75)) {
+          const hitRadius = xr ? blk.w * 0.6 + 0.08 : blk.w * 0.68 + 0.22;
+          const blkPos2D = new THREE.Vector2(blk.mesh.position.x, blk.mesh.position.y);
+
+          let redHit = false;
+          let blueHit = false;
+
+          if (xr) {
+            // Free saber: swept 3D test between the blade segment and the block's path this frame
+            const pp = blk.prevPos || blk.mesh.position;
+            redHit = segSegDist(saberSeg.red.a, saberSeg.red.b, pp, blk.mesh.position) <= hitRadius;
+            blueHit = segSegDist(saberSeg.blue.a, saberSeg.blue.b, pp, blk.mesh.position) <= hitRadius;
+          } else if (state.controlMode === 'dual') {
+            const distRed = blkPos2D.distanceTo(new THREE.Vector2(state.redSaberTip.x, state.redSaberTip.y));
+            const distBlue = blkPos2D.distanceTo(new THREE.Vector2(state.blueSaberTip.x, state.blueSaberTip.y));
+            redHit = distRed <= hitRadius;
+            blueHit = distBlue <= hitRadius;
+          } else {
+            // In Cursor Click-Select mode, player slashes with Left-Click/Q (Red) or Right-Click/E (Blue)
+            const distCursor = blkPos2D.distanceTo(new THREE.Vector2(state.pointerWorld.x, state.pointerWorld.y));
+            if (distCursor <= hitRadius) {
+              if (state.redSlashTimer > 0) redHit = true;
+              if (state.blueSlashTimer > 0) blueHit = true;
+            }
+          }
+
+          if (redHit || blueHit) {
+            if (redHit) haptic('red');
+            if (blueHit) haptic('blue');
+            blk.resolved = true;
+
+            if (blk.type === 'green') {
+              // Hitting a GREEN (SKIP) block is ALWAYS a FALSE ALARM!
+              playSound('false_alarm');
+              createSliceExplosion(blk.mesh.position, 0xff2a5f);
+              showFloatingFeedback(
+                blk.mesh.position,
+                'FALSE ALARM!',
+                'Sliced Green Skip Block!',
+                'neon-border-red text-rose-400'
+              );
+              recordTrialOutcome(blk, 'FALSE ALARM', now, 'Sliced Green');
+            } else if (blk.type === 'red') {
+              if (redHit) {
+                playSound('hit_red');
+                createSliceExplosion(blk.mesh.position, 0xff2a5f);
+                recordTrialOutcome(blk, 'HIT', now, 'Red Saber');
+                const aTxt = state.calcA !== null ? `a:${state.calcA.toFixed(0)}ms b:${state.calcB.toFixed(0)}` : '1st Hit Anchored!';
+                showFloatingFeedback(
+                  blk.mesh.position,
+                  'RED HIT!',
+                  aTxt,
+                  'neon-border-red text-rose-300'
+                );
+              } else {
+                // Hit Red block with Blue Saber
+                playSound('false_alarm');
+                createSliceExplosion(blk.mesh.position, 0xf59e0b);
+                const outcomeType = wrongSaberAsFA ? 'FALSE ALARM' : 'MISS';
+                showFloatingFeedback(
+                  blk.mesh.position,
+                  `WRONG SABER (${outcomeType})`,
+                  'Hit Red Block with Blue Saber',
+                  'neon-border-red text-amber-300'
+                );
+                recordTrialOutcome(blk, outcomeType, now, 'Wrong Saber');
+              }
+            } else if (blk.type === 'blue') {
+              if (blueHit) {
+                playSound('hit_blue');
+                createSliceExplosion(blk.mesh.position, 0x00e5ff);
+                recordTrialOutcome(blk, 'HIT', now, 'Blue Saber');
+                const aTxt = state.calcA !== null ? `a:${state.calcA.toFixed(0)}ms b:${state.calcB.toFixed(0)}` : '1st Hit Anchored!';
+                showFloatingFeedback(
+                  blk.mesh.position,
+                  'BLUE HIT!',
+                  aTxt,
+                  'neon-border-blue text-cyan-300'
+                );
+              } else {
+                // Hit Blue block with Red Saber
+                playSound('false_alarm');
+                createSliceExplosion(blk.mesh.position, 0xf59e0b);
+                const outcomeType = wrongSaberAsFA ? 'FALSE ALARM' : 'MISS';
+                showFloatingFeedback(
+                  blk.mesh.position,
+                  `WRONG SABER (${outcomeType})`,
+                  'Hit Blue Block with Red Saber',
+                  'neon-border-red text-amber-300'
+                );
+                recordTrialOutcome(blk, outcomeType, now, 'Wrong Saber');
+              }
+            }
+
+            scene.remove(blk.mesh);
+            activeBlocks.splice(i, 1);
+            continue;
+          }
+        }
+
+        // Check if block has passed past the player's strike zone (Z > despawnZ)
+        if (blk.mesh.position.z > state.despawnZ) {
+          blk.resolved = true;
+          if (blk.type === 'green') {
+            // Letting a GREEN block pass untouched is a CORRECT REJECTION!
+            playSound('correct_rejection');
+            showFloatingFeedback(
+              new THREE.Vector3(blk.x, blk.y, 0),
+              'CORRECT REJECTION ✓',
+              'Green Block Skipped Safely',
+              'neon-border-green text-emerald-300'
+            );
+            recordTrialOutcome(blk, 'CORRECT REJECTION', null, 'Skipped Green');
+          } else {
+            // Letting a RED or BLUE block pass untouched is a MISS!
+            playSound('miss');
+            showFloatingFeedback(
+              new THREE.Vector3(blk.x, blk.y, 0),
+              'MISS!',
+              `Missed ${blk.type.toUpperCase()} Target`,
+              'border-amber-500/60 text-amber-300'
+            );
+            recordTrialOutcome(blk, 'MISS', null, 'Passed Unhit');
+          }
+
+          scene.remove(blk.mesh);
+          activeBlocks.splice(i, 1);
+        }
+      }
+    }
+
+    function animate() {
+      const now = performance.now();
+      const dt = Math.min((now - lastFrameTime) / 1000, 0.1);
+      lastFrameTime = now;
+
+      // Animate neon tunnel arch frames moving toward player at current auto speed
+      archFrames.forEach(frame => {
+        frame.position.z += state.lastAutoSpeed * 0.45 * dt;
+        if (frame.position.z > 3.2) {
+          frame.position.z -= 32.0;
+        }
+      });
+
+      // Automatically spawn incoming blocks with slight cadence jitter so timing + (X,Y) + speed feel organic
+      if (state.streamActive && now - lastSpawnTime >= nextAutoInterval) {
+        spawnBlock();
+        lastSpawnTime = now;
+        const jitter = 0.78 + Math.random() * 0.44;
+        nextAutoInterval = state.spawnInterval * jitter;
+      }
+
+      // Move active blocks forward along +Z and apply optional mid-flight (X,Y) & speed modulation
+      const nowSec = now * 0.001;
+      for (let i = 0; i < activeBlocks.length; i++) {
+        const blk = activeBlocks[i];
+        blk.prevPos = blk.prevPos || new THREE.Vector3();
+        blk.prevPos.copy(blk.mesh.position);
+        if (blk.emblem) blk.emblem.rotation.y += dt * 2.5;
+
+        if (state.autoMode === 'inflight_shift') {
+          // Dynamically modulate X, Y, and Speed while the block is in flight (stabilizes near strike zone)
+          const distFactor = THREE.MathUtils.clamp(Math.abs(blk.mesh.position.z) / 18.0, 0, 1);
+          blk.x = THREE.MathUtils.clamp(
+            blk.baseX + Math.sin(nowSec * blk.shiftFreq + blk.shiftPhase) * blk.shiftAmpX * distFactor,
+            -state.randXSpread,
+            state.randXSpread
+          );
+          blk.y = THREE.MathUtils.clamp(
+            blk.baseY + Math.cos(nowSec * blk.shiftFreq + blk.shiftPhase) * blk.shiftAmpY * distFactor,
+            state.randYMin,
+            state.randYMax
+          );
+          blk.speed = Math.max(4.0, blk.baseSpeed * (1 + 0.25 * Math.sin(nowSec * 2.5 + blk.shiftPhase)));
+          blk.mesh.position.x = blk.x;
+          blk.mesh.position.y = blk.y;
+        }
+
+        blk.mesh.position.z += blk.speed * dt;
+        blk.mesh.rotation.z = Math.sin(now * 0.003 + i) * 0.04;
+      }
+
+      // Update saber positions & rotations
+      updateSabers(dt);
+      computeSaberSegs();
+      updateTrails();
+      updateVRHud(now);
+
+      // Evaluate collisions & SDT outcomes
+      checkSaberBlockCollisions(now);
+
+      // Update live 2D Auto-Spawn Radar Canvas
+      drawAutoRadar();
+
+      // Update particle explosions
+      for (let i = activeParticles.length - 1; i >= 0; i--) {
+        const p = activeParticles[i];
+        p.mesh.position.addScaledVector(p.vel, dt);
+        p.vel.y -= 9.8 * dt;
+        p.life -= dt * 2.2;
+        p.mesh.scale.setScalar(Math.max(0.01, p.life));
+        if (p.life <= 0) {
+          scene.remove(p.mesh);
+          activeParticles.splice(i, 1);
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    window.onload = function () {
+      const vs = document.getElementById('vr-status');
+      if (navigator.xr) {
+        navigator.xr.isSessionSupported('immersive-vr')
+          .then(ok => { vs.textContent = ok ? 'VR ready - press ENTER VR' : 'VR not supported here - open in Meta Quest Browser'; })
+          .catch(e => { vs.textContent = 'VR check failed: ' + (e && e.message || e); });
+      } else {
+        vs.textContent = 'WebXR unavailable - use https:// link in Meta Quest Browser';
+      }
+      updateSpawnParams();
+      updateProbabilities();
+      updateFittsCalculator();
+      updateSDTDashboard();
+      renderer.setAnimationLoop(animate);
+    };
+  </script>
+</body>
+</html>
