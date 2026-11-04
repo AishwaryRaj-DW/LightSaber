@@ -194,7 +194,7 @@
 
     <!-- Right Controls: VR, Audio, Telemetry Download, Reset -->
     <div class="flex items-center gap-1.5">
-      <button id="btn-vr" onclick="toggleVRSession()" class="px-2.5 py-1.5 rounded text-xs font-scada font-semibold bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-500/50 transition flex items-center gap-1.5">
+      <button id="btn-vr" onclick="toggleVRSession()" style="display:none" class="px-2.5 py-1.5 rounded text-xs font-scada font-semibold bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-500/50 transition flex items-center gap-1.5">
         <i class="fa-solid fa-vr-cardboard"></i>
         <span id="label-vr">ENTER VR</span>
       </button>
@@ -763,7 +763,7 @@
     </button>
   </footer>
 
-  <button id="btn-vr-big" onclick="toggleVRSession()" style="position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:60;padding:14px 34px;font-size:22px;font-weight:800;border-radius:10px;border:2px solid #f59e0b;background:#78350f;color:#fef3c7;font-family:'Chakra Petch',sans-serif;box-shadow:0 0 25px rgba(245,158,11,0.6);cursor:pointer;display:none;">ENTER VR BAY</button>
+  <button id="btn-vr-big" onclick="toggleVRSession()" style="position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:60;padding:10px 28px;font-size:18px;font-weight:800;border-radius:10px;border:2px solid #f59e0b;background:#78350f;color:#fef3c7;font-family:'Chakra Petch',sans-serif;box-shadow:0 0 25px rgba(245,158,11,0.6);cursor:pointer;"><span id="label-vr-big">ENTER VR</span></button>
   <div id="vr-status" style="position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:60;font-size:13px;color:#cbd5e1;background:rgba(15,23,42,0.9);padding:5px 14px;border-radius:6px;border:1px solid #475569;white-space:nowrap">Factory SCADA ready...</div>
 
   <!-- MAIN FACTORY ENGINE: THREE.JS INDUSTRIAL ENVIRONMENT & CRANE LOGIC -->
@@ -985,7 +985,24 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.xr.enabled = true;
+    // VR sharpness: setPixelRatio is ignored inside a headset, so render the XR framebuffer
+    // above native resolution and turn off fixed foveation (which blurs the periphery).
+    // Both must be set before the session starts. Lower the scale to ~1.1 if the Quest stutters.
+    const XR_RENDER_SCALE = 1.4;
+    if (renderer.xr.setFramebufferScaleFactor) renderer.xr.setFramebufferScaleFactor(XR_RENDER_SCALE);
+    if (renderer.xr.setFoveation) renderer.xr.setFoveation(0);
     container.appendChild(renderer.domElement);
+
+    // Physical floor of the operating volume: the belt surface plus the winch handle's own
+    // size, so the handle can never be pushed down into the conveyor in 2D or VR.
+    const BELT_TOP_Y = 1.13;                  // belt centre 1.05 + half thickness 0.08
+    const WINCH_MIN_Y = BELT_TOP_Y + 0.42;    // 1.55 = the default resting height
+    const WINCH_MAX_Y = 2.8;
+    const WINCH_VISUAL_DROP = 0.25;           // handle model hangs this far below the aim point
+    const WINCH_CLEARANCE = 0.17;             // lowest part of the handle model sits ~0.15 below its origin
+    function winchVisualY(aimY) {
+      return Math.max(aimY - WINCH_VISUAL_DROP, BELT_TOP_Y + WINCH_CLEARANCE);
+    }
 
     /*************************************************************************
      * 3b. VR PLAYER RIG, HAND CONTROLLERS & HAPTICS
@@ -1055,7 +1072,7 @@
           if (t > 0) {
             winchPos.set(
               THREE.MathUtils.clamp(_aimOrigin.x + _aimDir.x * t, -2.5, 2.5),
-              THREE.MathUtils.clamp(_aimOrigin.y + _aimDir.y * t, 0.8, 2.8),
+              THREE.MathUtils.clamp(_aimOrigin.y + _aimDir.y * t, WINCH_MIN_Y, WINCH_MAX_Y),
               state.strikeZ
             );
             len = Math.min(t, 12);
@@ -1262,10 +1279,13 @@
     scene.add(conveyorGroup);
 
     // Procedural High-Contrast Tread Texture for Continuous Non-Glitchy Scrolling
+    // 2x resolution + mip-maps + anisotropic filtering: the high-frequency ribs used to shimmer
+    // and break into moire stripes at the grazing angle seen from the catwalk, worst in the headset.
     const beltCanvas = document.createElement('canvas');
-    beltCanvas.width = 128;
-    beltCanvas.height = 256;
+    beltCanvas.width = 256;
+    beltCanvas.height = 512;
     const bCtx = beltCanvas.getContext('2d');
+    bCtx.scale(2, 2);                       // keep the original 128x256 drawing coordinates
     bCtx.fillStyle = '#111827';
     bCtx.fillRect(0, 0, 128, 256);
     // Draw high-grip rubber chevron ribs
@@ -1286,6 +1306,10 @@
     const beltTexture = new THREE.CanvasTexture(beltCanvas);
     beltTexture.wrapS = THREE.RepeatWrapping;
     beltTexture.wrapT = THREE.RepeatWrapping;
+    beltTexture.generateMipmaps = true;
+    beltTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    beltTexture.magFilter = THREE.LinearFilter;
+    beltTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
     beltTexture.repeat.set(1, 24);
 
     // Continuous Conveyor Bed with Treaded Rolling Surface
@@ -2766,7 +2790,7 @@
       raycaster.ray.intersectPlane(conveyorTargetPlane, intersect);
       if (intersect) {
         state.pointerWorld.x = THREE.MathUtils.clamp(intersect.x, -2.5, 2.5);
-        state.pointerWorld.y = THREE.MathUtils.clamp(intersect.y, 0.8, 2.8);
+        state.pointerWorld.y = THREE.MathUtils.clamp(intersect.y, WINCH_MIN_Y, WINCH_MAX_Y);
         state.pointerWorld.z = state.strikeZ;
       }
     }
@@ -2883,9 +2907,11 @@
           renderer.xr.setSession(session);
           currentXRSession = session;
           document.getElementById('label-vr').textContent = 'EXIT VR';
+          document.getElementById('btn-vr-big').style.display = 'none';
           session.addEventListener('end', () => {
             currentXRSession = null;
             document.getElementById('label-vr').textContent = 'ENTER VR';
+            document.getElementById('btn-vr-big').style.display = '';
           });
         } else {
           await currentXRSession.end();
@@ -3093,8 +3119,8 @@
       if (renderer.xr.isPresenting) {
         // VR: each controller aims its own winch (left = red, right = blue)
         updateVRAim();
-        redWinch.group.position.set(state.redWinchPos.x, state.redWinchPos.y - 0.25, state.strikeZ);
-        blueWinch.group.position.set(state.blueWinchPos.x, state.blueWinchPos.y - 0.25, state.strikeZ);
+        redWinch.group.position.set(state.redWinchPos.x, winchVisualY(state.redWinchPos.y), state.strikeZ);
+        blueWinch.group.position.set(state.blueWinchPos.x, winchVisualY(state.blueWinchPos.y), state.strikeZ);
         redWinch.group.rotation.z = state.redPullTimer > 0 ? -0.45 : -0.15;
         blueWinch.group.rotation.z = state.bluePullTimer > 0 ? 0.45 : 0.15;
       } else if (state.controlMode === 'dual') {
@@ -3104,8 +3130,8 @@
         state.redWinchPos.set(state.pointerWorld.x + redOffset, state.pointerWorld.y, state.strikeZ);
         state.blueWinchPos.set(state.pointerWorld.x + blueOffset, state.pointerWorld.y, state.strikeZ);
 
-        redWinch.group.position.set(state.redWinchPos.x, state.redWinchPos.y - 0.25, state.strikeZ);
-        blueWinch.group.position.set(state.blueWinchPos.x, state.blueWinchPos.y - 0.25, state.strikeZ);
+        redWinch.group.position.set(state.redWinchPos.x, winchVisualY(state.redWinchPos.y), state.strikeZ);
+        blueWinch.group.position.set(state.blueWinchPos.x, winchVisualY(state.blueWinchPos.y), state.strikeZ);
 
         redWinch.group.rotation.z = state.redPullTimer > 0 ? -0.45 : -0.15;
         blueWinch.group.rotation.z = state.bluePullTimer > 0 ? 0.45 : 0.15;
@@ -3113,8 +3139,8 @@
         state.redWinchPos.set(state.pointerWorld.x, state.pointerWorld.y, state.strikeZ);
         state.blueWinchPos.set(state.pointerWorld.x, state.pointerWorld.y, state.strikeZ);
 
-        redWinch.group.position.set(state.pointerWorld.x - 0.2, state.pointerWorld.y - 0.25, state.strikeZ);
-        blueWinch.group.position.set(state.pointerWorld.x + 0.2, state.pointerWorld.y - 0.25, state.strikeZ);
+        redWinch.group.position.set(state.pointerWorld.x - 0.2, winchVisualY(state.pointerWorld.y), state.strikeZ);
+        blueWinch.group.position.set(state.pointerWorld.x + 0.2, winchVisualY(state.pointerWorld.y), state.strikeZ);
       }
 
       // Track cranes overhead to match winches in tracking mode
@@ -3241,12 +3267,15 @@
     let vrPanelNext = 0;
 
     function makeVRPanel(widthM, heightM, pxW, pxH, onTop) {
+      const SS = 2;                              // draw at 2x so panel text stays crisp in the headset
       const canvas = document.createElement('canvas');
-      canvas.width = pxW;
-      canvas.height = pxH;
+      canvas.width = pxW * SS;
+      canvas.height = pxH * SS;
       const ctx = canvas.getContext('2d');
+      ctx.scale(SS, SS);                         // all draw code keeps using the logical pxW x pxH space
       const tex = new THREE.CanvasTexture(canvas);
       tex.minFilter = THREE.LinearFilter;
+      tex.anisotropy = 4;
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false, depthTest: !onTop, fog: false });
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(widthM, heightM), mat);
       if (onTop) mesh.renderOrder = 999;
@@ -3441,31 +3470,57 @@
       if (s.includes('indigo')) return '#a5b4fc';
       return '#fbbf24';
     }
+    // Shrink the font until the text fits, instead of squashing it horizontally with maxWidth.
+    function fitCanvasText(c, text, x, y, maxW, startPx, minPx, weight, family) {
+      let px = startPx;
+      do { c.font = `${weight} ${px}px ${family}`; px -= 2; }
+      while (c.measureText(text).width > maxW && px >= minPx);
+      c.fillText(text, x, y);
+    }
+    const _vrCamPos = new THREE.Vector3();
+    const _vrToCam = new THREE.Vector3();
     function spawnVRFeedback(worldPos, title, subtitle, styleClass) {
       const col = vrFeedbackColor(styleClass);
+      // Headset toasts must be short: move "[FALSE ALARM]"-style tags out of the title
+      let shortTitle = String(title);
+      let shortSub = String(subtitle || '');
+      const tag = shortTitle.match(/\s*\[(.+?)\]\s*/);
+      if (tag) { shortTitle = shortTitle.replace(tag[0], ' ').trim(); shortSub = `${tag[1]} \u00B7 ${shortSub}`; }
+
+      const SS = 2;                                   // supersample the text so it stays sharp in the headset
+      const W = 512, H = 128;
       const canvas = document.createElement('canvas');
-      canvas.width = 512; canvas.height = 128;
+      canvas.width = W * SS; canvas.height = H * SS;
       const c = canvas.getContext('2d');
+      c.scale(SS, SS);
       c.fillStyle = 'rgba(8,12,26,0.88)';
-      roundRectPath(c, 3, 3, 506, 122, 16);
+      roundRectPath(c, 3, 3, W - 6, H - 6, 16);
       c.fill();
       c.lineWidth = 4; c.strokeStyle = col; c.stroke();
       c.textAlign = 'center';
       c.fillStyle = col;
-      c.font = 'bold 32px "Chakra Petch", sans-serif';
-      c.fillText(String(title), 256, 54, 480);
+      fitCanvasText(c, shortTitle, W / 2, 56, W - 40, 36, 20, 'bold', '"Chakra Petch", sans-serif');
       c.fillStyle = '#cbd5e1';
-      c.font = '22px "JetBrains Mono", monospace';
-      c.fillText(String(subtitle || ''), 256, 94, 480);
+      fitCanvasText(c, shortSub, W / 2, 98, W - 40, 24, 14, 'normal', '"JetBrains Mono", monospace');
+
       const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = 4;
       const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, fog: false });
       const sprite = new THREE.Sprite(mat);
-      sprite.scale.set(1.6, 0.4, 1);
-      sprite.position.copy(worldPos);
+
+      // Keep a constant apparent size (~12 degrees wide) wherever the event happens, and
+      // pull the toast toward the viewer so it never sits inside the cargo or the winches.
+      camera.getWorldPosition(_vrCamPos);
+      const dist = THREE.MathUtils.clamp(_vrCamPos.distanceTo(worldPos), 1.2, 8);
+      const widthM = dist * 0.21;
+      sprite.scale.set(widthM, widthM * (H / W), 1);
+      _vrToCam.copy(_vrCamPos).sub(worldPos).normalize();
+      sprite.position.copy(worldPos).addScaledVector(_vrToCam, 0.4);
+      sprite.position.y += 0.25;
       sprite.renderOrder = 900;
       scene.add(sprite);
-      vrFeedbacks.push({ sprite, tex, mat, born: performance.now(), baseY: worldPos.y });
-      while (vrFeedbacks.length > 5) disposeVRFeedback(vrFeedbacks.shift());
+      vrFeedbacks.push({ sprite, tex, mat, born: performance.now(), baseY: sprite.position.y });
+      while (vrFeedbacks.length > 3) disposeVRFeedback(vrFeedbacks.shift());
     }
     function disposeVRFeedback(f) {
       scene.remove(f.sprite);
@@ -3477,7 +3532,7 @@
         const f = vrFeedbacks[i];
         const age = (now - f.born) / 1300;
         if (age >= 1) { disposeVRFeedback(f); vrFeedbacks.splice(i, 1); continue; }
-        f.sprite.position.y = f.baseY + age * 0.6;
+        f.sprite.position.y = f.baseY + age * 0.3;
         f.mat.opacity = age < 0.7 ? 1 : 1 - (age - 0.7) / 0.3;
       }
     }
